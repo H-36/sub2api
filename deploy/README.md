@@ -49,6 +49,7 @@ chmod +x docker-deploy.sh
 - Creates `.env` file with generated secrets
 - Creates necessary data directories (data/, postgres_data/, redis_data/)
 - **Displays generated credentials** (POSTGRES_PASSWORD, JWT_SECRET, etc.)
+- Sets the deployment up to pull a prebuilt image instead of building on the server
 
 **After running the script:**
 ```bash
@@ -105,6 +106,22 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.yml** | Named volumes (/var/lib/docker/volumes/) | ⚠️ Requires docker commands | Simple setup, don't need migration |
 
 **Recommendation:** Use `docker-compose.local.yml` (deployed by `docker-deploy.sh`) for easier data management and migration.
+
+### Image Update Strategy
+
+The Docker deployment is designed for **pull-only updates on the server**:
+
+- `SUB2API_IMAGE=ghcr.io/wei-shaw/sub2api:latest` tracks stable tagged releases
+- `SUB2API_IMAGE=ghcr.io/wei-shaw/sub2api:edge` tracks the latest image built from the `main` branch
+
+This avoids running `pnpm build` and `go build` on the production server.
+
+To update only the application container after a new image is available:
+
+```bash
+docker compose -f docker-compose.local.yml pull sub2api
+docker compose -f docker-compose.local.yml up -d sub2api
+```
 
 ### How Auto-Setup Works
 
