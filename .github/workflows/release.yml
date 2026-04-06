@@ -68,6 +68,12 @@ jobs:
       - name: Activate pnpm
         run: corepack prepare pnpm@9 --activate
 
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Activate pnpm
+        run: corepack prepare pnpm@9 --activate
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: frontend
