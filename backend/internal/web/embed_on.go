@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"io"
 	"io/fs"
+	"mime"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -80,15 +82,25 @@ func (s *FrontendServer) InvalidateCache() {
 // Middleware returns the Gin middleware handler
 func (s *FrontendServer) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		path := c.Request.URL.Path
+		requestPath := c.Request.URL.Path
 
 		// Skip API routes
-		if shouldBypassEmbeddedFrontend(path) {
+		if shouldBypassEmbeddedFrontend(requestPath) {
 			c.Next()
 			return
 		}
 
-		cleanPath := strings.TrimPrefix(path, "/")
+		if isDocsRoute(requestPath) {
+			if resolvedPath, ok := resolveStaticPath(s.distFS, requestPath); ok {
+				s.serveStaticPath(c, resolvedPath)
+				return
+			}
+
+			c.Next()
+			return
+		}
+
+		cleanPath := strings.TrimPrefix(requestPath, "/")
 		if cleanPath == "" {
 			cleanPath = "index.html"
 		}
@@ -100,8 +112,7 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 		}
 
 		// Serve static files normally
-		s.fileServer.ServeHTTP(c.Writer, c.Request)
-		c.Abort()
+		s.serveStaticPath(c, cleanPath)
 	}
 }
 
@@ -173,6 +184,18 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	c.Abort()
 }
 
+func (s *FrontendServer) serveStaticPath(c *gin.Context, resolvedPath string) {
+	if strings.HasSuffix(resolvedPath, ".html") {
+		serveEmbeddedFile(c, s.distFS, resolvedPath)
+		return
+	}
+
+	req := c.Request.Clone(c.Request.Context())
+	req.URL.Path = "/" + strings.TrimPrefix(resolvedPath, "/")
+	s.fileServer.ServeHTTP(c.Writer, req)
+	c.Abort()
+}
+
 func (s *FrontendServer) injectSettings(settingsJSON []byte) []byte {
 	// Create the script tag to inject with nonce placeholder
 	// The placeholder will be replaced with actual nonce at request time
@@ -228,22 +251,31 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 	fileServer := http.FileServer(http.FS(distFS))
 
 	return func(c *gin.Context) {
-		path := c.Request.URL.Path
+		requestPath := c.Request.URL.Path
 
-		if shouldBypassEmbeddedFrontend(path) {
+		if shouldBypassEmbeddedFrontend(requestPath) {
 			c.Next()
 			return
 		}
 
-		cleanPath := strings.TrimPrefix(path, "/")
+		if isDocsRoute(requestPath) {
+			if resolvedPath, ok := resolveStaticPath(distFS, requestPath); ok {
+				serveResolvedPath(fileServer, distFS, c, resolvedPath)
+				return
+			}
+
+			c.Next()
+			return
+		}
+
+		cleanPath := strings.TrimPrefix(requestPath, "/")
 		if cleanPath == "" {
 			cleanPath = "index.html"
 		}
 
 		if file, err := distFS.Open(cleanPath); err == nil {
 			_ = file.Close()
-			fileServer.ServeHTTP(c.Writer, c.Request)
-			c.Abort()
+			serveResolvedPath(fileServer, distFS, c, cleanPath)
 			return
 		}
 
@@ -261,6 +293,112 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		trimmed == "/health" ||
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/")
+}
+
+func isDocsRoute(requestPath string) bool {
+	trimmed := strings.TrimSpace(requestPath)
+	return trimmed == "/docs" || trimmed == "/docs/" || strings.HasPrefix(trimmed, "/docs/")
+}
+
+func resolveStaticPath(fsys fs.FS, requestPath string) (string, bool) {
+	cleanPath := normalizeStaticRequestPath(requestPath)
+	if cleanPath == "" {
+		return "", false
+	}
+
+	if isFile(fsys, cleanPath) {
+		return cleanPath, true
+	}
+
+	if isDirectory(fsys, cleanPath) {
+		indexPath := path.Join(cleanPath, "index.html")
+		if isFile(fsys, indexPath) {
+			return indexPath, true
+		}
+	}
+
+	if path.Ext(cleanPath) == "" {
+		htmlPath := cleanPath + ".html"
+		if isFile(fsys, htmlPath) {
+			return htmlPath, true
+		}
+
+		indexPath := path.Join(cleanPath, "index.html")
+		if isFile(fsys, indexPath) {
+			return indexPath, true
+		}
+	}
+
+	return "", false
+}
+
+func normalizeStaticRequestPath(requestPath string) string {
+	trimmed := strings.TrimSpace(requestPath)
+	if trimmed == "" {
+		return ""
+	}
+
+	cleanPath := path.Clean("/" + strings.TrimPrefix(trimmed, "/"))
+	if cleanPath == "/" {
+		return ""
+	}
+
+	return strings.TrimPrefix(cleanPath, "/")
+}
+
+func isFile(fsys fs.FS, name string) bool {
+	info, err := fs.Stat(fsys, name)
+	if err != nil {
+		return false
+	}
+
+	return !info.IsDir()
+}
+
+func isDirectory(fsys fs.FS, name string) bool {
+	info, err := fs.Stat(fsys, name)
+	if err != nil {
+		return false
+	}
+
+	return info.IsDir()
+}
+
+func serveResolvedPath(fileServer http.Handler, fsys fs.FS, c *gin.Context, resolvedPath string) {
+	if strings.HasSuffix(resolvedPath, ".html") {
+		serveEmbeddedFile(c, fsys, resolvedPath)
+		return
+	}
+
+	req := c.Request.Clone(c.Request.Context())
+	req.URL.Path = "/" + strings.TrimPrefix(resolvedPath, "/")
+	fileServer.ServeHTTP(c.Writer, req)
+	c.Abort()
+}
+
+func serveEmbeddedFile(c *gin.Context, fsys fs.FS, resolvedPath string) {
+	file, err := fsys.Open(resolvedPath)
+	if err != nil {
+		c.String(http.StatusNotFound, "File not found")
+		c.Abort()
+		return
+	}
+	defer func() { _ = file.Close() }()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to read file")
+		c.Abort()
+		return
+	}
+
+	contentType := mime.TypeByExtension(path.Ext(resolvedPath))
+	if contentType == "" {
+		contentType = http.DetectContentType(content)
+	}
+
+	c.Data(http.StatusOK, contentType, content)
+	c.Abort()
 }
 
 func serveIndexHTML(c *gin.Context, fsys fs.FS) {

@@ -539,6 +539,61 @@ func TestFrontendServer_Middleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
 	})
+
+	t.Run("serves_docs_site_routes_without_falling_back_to_main_spa", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set(middleware.CSPNonceKey, "test-nonce")
+			c.Next()
+		})
+		router.Use(server.Middleware())
+
+		docPaths := []string{
+			"/docs",
+			"/docs/",
+			"/docs/guide/",
+			"/docs/reference/models",
+		}
+
+		for _, path := range docPaths {
+			t.Run(path, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest(http.MethodGet, path, nil)
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusOK, w.Code)
+				assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+				assert.Contains(t, w.Body.String(), "/docs/assets/")
+				assert.NotContains(t, w.Body.String(), "window.__APP_CONFIG__=")
+			})
+		}
+	})
+
+	t.Run("serves_docs_static_assets", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		router := gin.New()
+		router.Use(server.Middleware())
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/docs/logo.png", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+	})
 }
 
 func TestNewFrontendServer(t *testing.T) {
@@ -660,6 +715,38 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 				assert.True(t, nextCalled, "next handler should be called for API route")
 			})
 		}
+	})
+
+	t.Run("serves_docs_routes_and_assets", func(t *testing.T) {
+		middleware := ServeEmbeddedFrontend()
+
+		router := gin.New()
+		router.Use(middleware)
+
+		docPaths := []string{
+			"/docs/",
+			"/docs/guide/",
+			"/docs/reference/models",
+		}
+
+		for _, path := range docPaths {
+			t.Run(path, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest(http.MethodGet, path, nil)
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusOK, w.Code)
+				assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+				assert.Contains(t, w.Body.String(), "/docs/assets/")
+			})
+		}
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/docs/logo.png", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
 	})
 }
 
