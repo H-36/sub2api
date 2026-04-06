@@ -37,6 +37,7 @@ type AdminHandlers struct {
 type Handlers struct {
 	Auth          *AuthHandler
 	User          *UserHandler
+	ModelPlaza    *ModelPlazaHandler
 	APIKey        *APIKeyHandler
 	Usage         *UsageHandler
 	Redeem        *RedeemHandler

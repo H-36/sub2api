@@ -378,6 +378,15 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	return svc
 }
 
+func ProvideModelPlazaService(
+	groupRepo GroupRepository,
+	channelService *ChannelService,
+	accountRepo AccountRepository,
+	billingService *BillingService,
+) *ModelPlazaService {
+	return NewModelPlazaService(groupRepo, channelService, accountRepo, billingService)
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -417,6 +426,7 @@ var ProviderSet = wire.NewSet(
 	NewAccountUsageService,
 	NewAccountTestService,
 	ProvideSettingService,
+	ProvideModelPlazaService,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,

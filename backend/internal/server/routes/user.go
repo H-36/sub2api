@@ -55,6 +55,8 @@ func RegisterUserRoutes(
 			groups.GET("/rates", h.APIKey.GetUserGroupRates)
 		}
 
+		authenticated.GET("/model-plaza", h.ModelPlaza.Get)
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{
