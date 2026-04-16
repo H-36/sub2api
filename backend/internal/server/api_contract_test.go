@@ -1305,6 +1305,10 @@ func (stubRedeemCodeRepo) IncrementClaimedCount(ctx context.Context, id, maxClai
 	return 0, errors.New("not implemented")
 }
 
+func (stubRedeemCodeRepo) ListClaimsByRedeemCode(ctx context.Context, redeemCodeID int64) ([]service.RedeemCodeClaim, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (stubRedeemCodeRepo) List(ctx context.Context, params pagination.PaginationParams) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }

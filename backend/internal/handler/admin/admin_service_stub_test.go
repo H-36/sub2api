@@ -59,6 +59,7 @@ type stubAdminService struct {
 		calls     int
 	}
 	lastGenerateRedeemCodesInput *service.GenerateRedeemCodesInput
+	redeemClaims                map[int64][]service.RedeemCodeClaim
 	mu                           sync.Mutex
 }
 
@@ -124,6 +125,7 @@ func newStubAdminService() *stubAdminService {
 		proxies:     []service.Proxy{proxy},
 		proxyCounts: []service.ProxyWithAccountCount{{Proxy: proxy, AccountCount: 1}},
 		redeems:     []service.RedeemCode{redeem},
+		redeemClaims: map[int64][]service.RedeemCodeClaim{},
 	}
 }
 
@@ -440,6 +442,10 @@ func (s *stubAdminService) ListRedeemCodes(ctx context.Context, page, pageSize i
 func (s *stubAdminService) GetRedeemCode(ctx context.Context, id int64) (*service.RedeemCode, error) {
 	code := service.RedeemCode{ID: id, Code: "R-TEST", Status: service.StatusUnused}
 	return &code, nil
+}
+
+func (s *stubAdminService) GetRedeemCodeClaims(ctx context.Context, id int64) ([]service.RedeemCodeClaim, error) {
+	return append([]service.RedeemCodeClaim(nil), s.redeemClaims[id]...), nil
 }
 
 func (s *stubAdminService) GenerateRedeemCodes(ctx context.Context, input *service.GenerateRedeemCodesInput) ([]service.RedeemCode, error) {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -190,4 +191,56 @@ func TestCreateAndRedeem_BalanceIgnoresSubscriptionFields(t *testing.T) {
 
 	assert.NotEqual(t, http.StatusBadRequest, code,
 		"balance type should not require group_id or validity_days")
+}
+
+func TestGetClaims_ReturnsClaimRecords(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	now := time.Date(2026, time.April, 17, 9, 30, 0, 0, time.UTC)
+	adminSvc.redeemClaims[123] = []service.RedeemCodeClaim{
+		{
+			ID:           1,
+			RedeemCodeID: 123,
+			UserID:       42,
+			Amount:       10,
+			ClaimedAt:    now,
+			User: &service.User{
+				ID:    42,
+				Email: "claimant@example.com",
+			},
+		},
+	}
+
+	router := gin.New()
+	router.GET("/api/v1/admin/redeem-codes/:id/claims", (&RedeemHandler{adminService: adminSvc}).GetClaims)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes/123/claims", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Code int `json:"code"`
+		Data []struct {
+			ID           int64   `json:"id"`
+			RedeemCodeID int64   `json:"redeem_code_id"`
+			UserID       int64   `json:"user_id"`
+			Amount       float64 `json:"amount"`
+			ClaimedAt    string  `json:"claimed_at"`
+			User         *struct {
+				ID    int64  `json:"id"`
+				Email string `json:"email"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Len(t, resp.Data, 1)
+	assert.Equal(t, int64(1), resp.Data[0].ID)
+	assert.Equal(t, int64(123), resp.Data[0].RedeemCodeID)
+	assert.Equal(t, int64(42), resp.Data[0].UserID)
+	assert.Equal(t, 10.0, resp.Data[0].Amount)
+	assert.Equal(t, "claimant@example.com", resp.Data[0].User.Email)
+	assert.Equal(t, now.Format(time.RFC3339), resp.Data[0].ClaimedAt)
 }

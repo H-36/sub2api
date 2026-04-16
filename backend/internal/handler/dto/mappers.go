@@ -541,6 +541,20 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 	return out
 }
 
+func RedeemCodeClaimFromService(claim *service.RedeemCodeClaim) *RedeemCodeClaim {
+	if claim == nil {
+		return nil
+	}
+	return &RedeemCodeClaim{
+		ID:           claim.ID,
+		RedeemCodeID: claim.RedeemCodeID,
+		UserID:       claim.UserID,
+		Amount:       claim.Amount,
+		ClaimedAt:    claim.ClaimedAt,
+		User:         UserFromServiceShallow(claim.User),
+	}
+}
+
 // AccountSummaryFromService returns a minimal AccountSummary for usage log display.
 // Only includes ID and Name - no sensitive fields like Credentials, Proxy, etc.
 func AccountSummaryFromService(a *service.Account) *AccountSummary {
