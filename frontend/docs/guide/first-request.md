@@ -129,3 +129,9 @@ curl "https://puaai.xyz/v1beta/models/gemini-2.5-flash:generateContent" \
 ## 7. 接入客户端前的建议
 
 如果你接的是 Cline、Open WebUI、LobeChat、Claude Code、Gemini CLI 一类客户端，先用 `curl` 跑通一次，再去填客户端配置，会少掉大半排错时间。
+
+如果你接的是具体编程工具，可以直接继续看：
+
+- <a href="../integration/codex.html">Codex 接入指南</a>
+- <a href="../integration/claude-code.html">Claude Code 接入指南</a>
+- <a href="../integration/opencode.html">OpenCode 接入指南</a>

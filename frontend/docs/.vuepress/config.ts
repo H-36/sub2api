@@ -9,7 +9,7 @@ import { sidebar } from './sidebar'
 export default defineUserConfig({
   lang: 'zh-CN',
   title: 'puaai 文档',
-  description: 'puaai 对外接入文档，包含 API Key、分组、模型自检、协议入口和常见问题。',
+  description: 'puaai 对外接入文档，包含 API 地址、计费与价格、API Keys 和 Codex / Claude Code / OpenCode 接入说明。',
   base: '/docs/',
   dest: path.resolve(__dirname, '../../../backend/internal/web/dist/docs'),
   head: [
@@ -17,7 +17,7 @@ export default defineUserConfig({
     ['meta', { property: 'og:title', content: 'puaai 文档' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:url', content: 'https://puaai.xyz/docs' }],
-    ['meta', { property: 'og:description', content: '先拿令牌，再接入请求，再核对分组与模型。' }]
+    ['meta', { property: 'og:description', content: '简洁的 puaai 接入文档。' }]
   ],
   theme: hopeTheme({
     hostname: 'https://puaai.xyz',
@@ -25,12 +25,12 @@ export default defineUserConfig({
     logo: 'logo.png',
     navbar,
     sidebar,
-    breadcrumb: true,
-    breadcrumbIcon: true,
+    breadcrumb: false,
+    breadcrumbIcon: false,
     contributors: false,
     editLink: false,
-    lastUpdated: true,
-    pageInfo: ['LastUpdated'],
+    lastUpdated: false,
+    pageInfo: [],
     titleIcon: true,
     toc: {
       levels: [2, 3]
