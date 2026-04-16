@@ -59,6 +59,10 @@ func (RedeemCode) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "text"}),
+		field.Int("max_claims").
+			Default(1),
+		field.Int("claimed_count").
+			Default(0),
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now).
@@ -81,6 +85,7 @@ func (RedeemCode) Edges() []ent.Edge {
 			Ref("redeem_codes").
 			Field("group_id").
 			Unique(),
+		edge.To("claims", RedeemCodeClaim.Type),
 	}
 }
 
@@ -88,6 +93,7 @@ func (RedeemCode) Indexes() []ent.Index {
 	return []ent.Index{
 		// code 字段已在 Fields() 中声明 Unique()，无需重复索引
 		index.Fields("status"),
+		index.Fields("type", "status"),
 		index.Fields("used_by"),
 		index.Fields("group_id"),
 	}

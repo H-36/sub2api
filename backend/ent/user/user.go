@@ -57,6 +57,8 @@ const (
 	EdgeAPIKeys = "api_keys"
 	// EdgeRedeemCodes holds the string denoting the redeem_codes edge name in mutations.
 	EdgeRedeemCodes = "redeem_codes"
+	// EdgeRedeemCodeClaims holds the string denoting the redeem_code_claims edge name in mutations.
+	EdgeRedeemCodeClaims = "redeem_code_claims"
 	// EdgeSubscriptions holds the string denoting the subscriptions edge name in mutations.
 	EdgeSubscriptions = "subscriptions"
 	// EdgeAssignedSubscriptions holds the string denoting the assigned_subscriptions edge name in mutations.
@@ -91,6 +93,13 @@ const (
 	RedeemCodesInverseTable = "redeem_codes"
 	// RedeemCodesColumn is the table column denoting the redeem_codes relation/edge.
 	RedeemCodesColumn = "used_by"
+	// RedeemCodeClaimsTable is the table that holds the redeem_code_claims relation/edge.
+	RedeemCodeClaimsTable = "redeem_code_claims"
+	// RedeemCodeClaimsInverseTable is the table name for the RedeemCodeClaim entity.
+	// It exists in this package in order to avoid circular dependency with the "redeemcodeclaim" package.
+	RedeemCodeClaimsInverseTable = "redeem_code_claims"
+	// RedeemCodeClaimsColumn is the table column denoting the redeem_code_claims relation/edge.
+	RedeemCodeClaimsColumn = "user_id"
 	// SubscriptionsTable is the table that holds the subscriptions relation/edge.
 	SubscriptionsTable = "user_subscriptions"
 	// SubscriptionsInverseTable is the table name for the UserSubscription entity.
@@ -373,6 +382,20 @@ func ByRedeemCodes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByRedeemCodeClaimsCount orders the results by redeem_code_claims count.
+func ByRedeemCodeClaimsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRedeemCodeClaimsStep(), opts...)
+	}
+}
+
+// ByRedeemCodeClaims orders the results by redeem_code_claims terms.
+func ByRedeemCodeClaims(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRedeemCodeClaimsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // BySubscriptionsCount orders the results by subscriptions count.
 func BySubscriptionsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -510,6 +533,13 @@ func newRedeemCodesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(RedeemCodesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, RedeemCodesTable, RedeemCodesColumn),
+	)
+}
+func newRedeemCodeClaimsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RedeemCodeClaimsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RedeemCodeClaimsTable, RedeemCodeClaimsColumn),
 	)
 }
 func newSubscriptionsStep() *sqlgraph.Step {

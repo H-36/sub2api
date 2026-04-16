@@ -524,6 +524,8 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 		UsedBy:       rc.UsedBy,
 		UsedAt:       rc.UsedAt,
 		CreatedAt:    rc.CreatedAt,
+		MaxClaims:    rc.MaxClaims,
+		ClaimedCount: rc.ClaimedCount,
 		GroupID:      rc.GroupID,
 		ValidityDays: rc.ValidityDays,
 		User:         UserFromServiceShallow(rc.User),

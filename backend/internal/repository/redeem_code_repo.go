@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcodeclaim"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -23,7 +25,8 @@ func NewRedeemCodeRepository(client *dbent.Client) service.RedeemCodeRepository 
 }
 
 func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemCode) error {
-	created, err := r.client.RedeemCode.Create().
+	client := clientFromContext(ctx, r.client)
+	builder := client.RedeemCode.Create().
 		SetCode(code.Code).
 		SetType(code.Type).
 		SetValue(code.Value).
@@ -32,12 +35,20 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetValidityDays(code.ValidityDays).
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
-		SetNillableGroupID(code.GroupID).
-		Save(ctx)
+		SetNillableGroupID(code.GroupID)
+	if code.MaxClaims > 0 {
+		builder.SetMaxClaims(code.MaxClaims)
+	}
+	if code.ClaimedCount > 0 {
+		builder.SetClaimedCount(code.ClaimedCount)
+	}
+	created, err := builder.Save(ctx)
 	err = translatePersistenceError(err, nil, service.ErrRedeemCodeExists)
 	if err == nil {
 		code.ID = created.ID
 		code.CreatedAt = created.CreatedAt
+		code.MaxClaims = created.MaxClaims
+		code.ClaimedCount = created.ClaimedCount
 	}
 	return err
 }
@@ -48,9 +59,10 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 	}
 
 	builders := make([]*dbent.RedeemCodeCreate, 0, len(codes))
+	client := clientFromContext(ctx, r.client)
 	for i := range codes {
 		c := &codes[i]
-		b := r.client.RedeemCode.Create().
+		b := client.RedeemCode.Create().
 			SetCode(c.Code).
 			SetType(c.Type).
 			SetValue(c.Value).
@@ -60,15 +72,22 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 			SetNillableUsedBy(c.UsedBy).
 			SetNillableUsedAt(c.UsedAt).
 			SetNillableGroupID(c.GroupID)
+		if c.MaxClaims > 0 {
+			b.SetMaxClaims(c.MaxClaims)
+		}
+		if c.ClaimedCount > 0 {
+			b.SetClaimedCount(c.ClaimedCount)
+		}
 		builders = append(builders, b)
 	}
 
-	err := r.client.RedeemCode.CreateBulk(builders...).Exec(ctx)
+	err := client.RedeemCode.CreateBulk(builders...).Exec(ctx)
 	return translatePersistenceError(err, nil, service.ErrRedeemCodeExists)
 }
 
 func (r *redeemCodeRepository) GetByID(ctx context.Context, id int64) (*service.RedeemCode, error) {
-	m, err := r.client.RedeemCode.Query().
+	client := clientFromContext(ctx, r.client)
+	m, err := client.RedeemCode.Query().
 		Where(redeemcode.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -81,7 +100,8 @@ func (r *redeemCodeRepository) GetByID(ctx context.Context, id int64) (*service.
 }
 
 func (r *redeemCodeRepository) GetByCode(ctx context.Context, code string) (*service.RedeemCode, error) {
-	m, err := r.client.RedeemCode.Query().
+	client := clientFromContext(ctx, r.client)
+	m, err := client.RedeemCode.Query().
 		Where(redeemcode.CodeEQ(code)).
 		Only(ctx)
 	if err != nil {
@@ -94,7 +114,8 @@ func (r *redeemCodeRepository) GetByCode(ctx context.Context, code string) (*ser
 }
 
 func (r *redeemCodeRepository) Delete(ctx context.Context, id int64) error {
-	_, err := r.client.RedeemCode.Delete().Where(redeemcode.IDEQ(id)).Exec(ctx)
+	client := clientFromContext(ctx, r.client)
+	_, err := client.RedeemCode.Delete().Where(redeemcode.IDEQ(id)).Exec(ctx)
 	return err
 }
 
@@ -103,7 +124,8 @@ func (r *redeemCodeRepository) List(ctx context.Context, params pagination.Pagin
 }
 
 func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, codeType, status, search string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
-	q := r.client.RedeemCode.Query()
+	client := clientFromContext(ctx, r.client)
+	q := client.RedeemCode.Query()
 
 	if codeType != "" {
 		q = q.Where(redeemcode.TypeEQ(codeType))
@@ -173,13 +195,16 @@ func redeemCodeListOrder(params pagination.PaginationParams) []func(*entsql.Sele
 }
 
 func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemCode) error {
-	up := r.client.RedeemCode.UpdateOneID(code.ID).
+	client := clientFromContext(ctx, r.client)
+	up := client.RedeemCode.UpdateOneID(code.ID).
 		SetCode(code.Code).
 		SetType(code.Type).
 		SetValue(code.Value).
 		SetStatus(code.Status).
 		SetNotes(code.Notes).
-		SetValidityDays(code.ValidityDays)
+		SetValidityDays(code.ValidityDays).
+		SetMaxClaims(code.MaxClaims).
+		SetClaimedCount(code.ClaimedCount)
 
 	if code.UsedBy != nil {
 		up.SetUsedBy(*code.UsedBy)
@@ -224,12 +249,62 @@ func (r *redeemCodeRepository) Use(ctx context.Context, id, userID int64) error 
 	return nil
 }
 
+func (r *redeemCodeRepository) HasClaimByUser(ctx context.Context, redeemCodeID, userID int64) (bool, error) {
+	client := clientFromContext(ctx, r.client)
+	return client.RedeemCodeClaim.Query().
+		Where(
+			redeemcodeclaim.RedeemCodeIDEQ(redeemCodeID),
+			redeemcodeclaim.UserIDEQ(userID),
+		).
+		Exist(ctx)
+}
+
+func (r *redeemCodeRepository) CreateClaim(ctx context.Context, redeemCodeID, userID int64, amount float64) error {
+	client := clientFromContext(ctx, r.client)
+	err := client.RedeemCodeClaim.Create().
+		SetRedeemCodeID(redeemCodeID).
+		SetUserID(userID).
+		SetAmount(amount).
+		Exec(ctx)
+	return translatePersistenceError(err, nil, service.ErrRedeemCodeClaimed)
+}
+
+func (r *redeemCodeRepository) IncrementClaimedCount(ctx context.Context, id, maxClaims int64) (int, error) {
+	client := clientFromContext(ctx, r.client)
+	affected, err := client.RedeemCode.Update().
+		Where(
+			redeemcode.IDEQ(id),
+			redeemcode.StatusEQ(service.StatusUnused),
+			redeemcode.ClaimedCountLT(int(maxClaims)),
+		).
+		AddClaimedCount(1).
+		Save(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if affected == 0 {
+		return 0, service.ErrRedeemCodeUsed
+	}
+
+	updated, err := client.RedeemCode.Query().
+		Where(redeemcode.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return 0, service.ErrRedeemCodeNotFound
+		}
+		return 0, err
+	}
+	return updated.ClaimedCount, nil
+}
+
 func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, limit int) ([]service.RedeemCode, error) {
 	if limit <= 0 {
 		limit = 10
 	}
 
-	codes, err := r.client.RedeemCode.Query().
+	client := clientFromContext(ctx, r.client)
+	codes, err := client.RedeemCode.Query().
 		Where(redeemcode.UsedByEQ(userID)).
 		WithGroup().
 		Order(dbent.Desc(redeemcode.FieldUsedAt)).
@@ -239,13 +314,31 @@ func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, lim
 		return nil, err
 	}
 
-	return redeemCodeEntitiesToService(codes), nil
+	claims, err := client.RedeemCodeClaim.Query().
+		Where(redeemcodeclaim.UserIDEQ(userID)).
+		WithRedeemCode(func(q *dbent.RedeemCodeQuery) {
+			q.WithGroup()
+		}).
+		Order(dbent.Desc(redeemcodeclaim.FieldClaimedAt)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	combined := append(redeemCodeEntitiesToService(codes), redeemCodeClaimEntitiesToService(claims)...)
+	sortRedeemCodesByUsedAtDesc(combined)
+	if len(combined) > limit {
+		combined = combined[:limit]
+	}
+	return combined, nil
 }
 
 // ListByUserPaginated returns paginated balance/concurrency history for a user.
 // Supports optional type filter (e.g. "balance", "admin_balance", "concurrency", "admin_concurrency", "subscription").
 func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
-	q := r.client.RedeemCode.Query().
+	client := clientFromContext(ctx, r.client)
+	q := client.RedeemCode.Query().
 		Where(redeemcode.UsedByEQ(userID))
 
 	// Optional type filter
@@ -260,23 +353,52 @@ func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID i
 
 	codes, err := q.
 		WithGroup().
-		Offset(params.Offset()).
-		Limit(params.Limit()).
 		Order(dbent.Desc(redeemcode.FieldUsedAt)).
 		All(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return redeemCodeEntitiesToService(codes), paginationResultFromTotal(int64(total), params), nil
+	claimQuery := client.RedeemCodeClaim.Query().
+		Where(redeemcodeclaim.UserIDEQ(userID))
+	if codeType != "" {
+		claimQuery = claimQuery.Where(redeemcodeclaim.HasRedeemCodeWith(redeemcode.TypeEQ(codeType)))
+	}
+	claimTotal, err := claimQuery.Count(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	claims, err := claimQuery.
+		WithRedeemCode(func(q *dbent.RedeemCodeQuery) {
+			q.WithGroup()
+		}).
+		Order(dbent.Desc(redeemcodeclaim.FieldClaimedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	combined := append(redeemCodeEntitiesToService(codes), redeemCodeClaimEntitiesToService(claims)...)
+	sortRedeemCodesByUsedAtDesc(combined)
+	start := params.Offset()
+	if start > len(combined) {
+		start = len(combined)
+	}
+	end := start + params.Limit()
+	if end > len(combined) {
+		end = len(combined)
+	}
+
+	return combined[start:end], paginationResultFromTotal(int64(total+claimTotal), params), nil
 }
 
 // SumPositiveBalanceByUser returns total recharged amount (sum of value > 0 where type is balance/admin_balance).
 func (r *redeemCodeRepository) SumPositiveBalanceByUser(ctx context.Context, userID int64) (float64, error) {
+	client := clientFromContext(ctx, r.client)
 	var result []struct {
 		Sum float64 `json:"sum"`
 	}
-	err := r.client.RedeemCode.Query().
+	err := client.RedeemCode.Query().
 		Where(
 			redeemcode.UsedByEQ(userID),
 			redeemcode.ValueGT(0),
@@ -287,10 +409,30 @@ func (r *redeemCodeRepository) SumPositiveBalanceByUser(ctx context.Context, use
 	if err != nil {
 		return 0, err
 	}
-	if len(result) == 0 {
-		return 0, nil
+
+	var welfareResult []struct {
+		Sum float64 `json:"sum"`
 	}
-	return result[0].Sum, nil
+	err = client.RedeemCodeClaim.Query().
+		Where(
+			redeemcodeclaim.UserIDEQ(userID),
+			redeemcodeclaim.AmountGT(0),
+			redeemcodeclaim.HasRedeemCodeWith(redeemcode.TypeEQ(service.RedeemTypeWelfare)),
+		).
+		Aggregate(dbent.As(dbent.Sum(redeemcodeclaim.FieldAmount), "sum")).
+		Scan(ctx, &welfareResult)
+	if err != nil {
+		return 0, err
+	}
+
+	var total float64
+	if len(result) > 0 {
+		total += result[0].Sum
+	}
+	if len(welfareResult) > 0 {
+		total += welfareResult[0].Sum
+	}
+	return total, nil
 }
 
 func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
@@ -307,6 +449,8 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		UsedAt:       m.UsedAt,
 		Notes:        derefString(m.Notes),
 		CreatedAt:    m.CreatedAt,
+		MaxClaims:    m.MaxClaims,
+		ClaimedCount: m.ClaimedCount,
 		GroupID:      m.GroupID,
 		ValidityDays: m.ValidityDays,
 	}
@@ -327,4 +471,46 @@ func redeemCodeEntitiesToService(models []*dbent.RedeemCode) []service.RedeemCod
 		}
 	}
 	return out
+}
+
+func redeemCodeClaimEntitiesToService(models []*dbent.RedeemCodeClaim) []service.RedeemCode {
+	out := make([]service.RedeemCode, 0, len(models))
+	for i := range models {
+		model := models[i]
+		if model == nil || model.Edges.RedeemCode == nil {
+			continue
+		}
+
+		parent := redeemCodeEntityToService(model.Edges.RedeemCode)
+		if parent == nil {
+			continue
+		}
+
+		parent.UsedBy = &model.UserID
+		claimedAt := model.ClaimedAt
+		parent.UsedAt = &claimedAt
+		parent.Status = service.StatusUsed
+		parent.Value = model.Amount
+		out = append(out, *parent)
+	}
+	return out
+}
+
+func sortRedeemCodesByUsedAtDesc(codes []service.RedeemCode) {
+	sort.Slice(codes, func(i, j int) bool {
+		left := codes[i].UsedAt
+		right := codes[j].UsedAt
+		switch {
+		case left == nil && right == nil:
+			return codes[i].CreatedAt.After(codes[j].CreatedAt)
+		case left == nil:
+			return false
+		case right == nil:
+			return true
+		case left.Equal(*right):
+			return codes[i].CreatedAt.After(codes[j].CreatedAt)
+		default:
+			return left.After(*right)
+		}
+	})
 }

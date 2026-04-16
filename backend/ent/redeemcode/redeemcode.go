@@ -28,6 +28,10 @@ const (
 	FieldUsedAt = "used_at"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// FieldMaxClaims holds the string denoting the max_claims field in the database.
+	FieldMaxClaims = "max_claims"
+	// FieldClaimedCount holds the string denoting the claimed_count field in the database.
+	FieldClaimedCount = "claimed_count"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldGroupID holds the string denoting the group_id field in the database.
@@ -38,6 +42,8 @@ const (
 	EdgeUser = "user"
 	// EdgeGroup holds the string denoting the group edge name in mutations.
 	EdgeGroup = "group"
+	// EdgeClaims holds the string denoting the claims edge name in mutations.
+	EdgeClaims = "claims"
 	// Table holds the table name of the redeemcode in the database.
 	Table = "redeem_codes"
 	// UserTable is the table that holds the user relation/edge.
@@ -54,6 +60,13 @@ const (
 	GroupInverseTable = "groups"
 	// GroupColumn is the table column denoting the group relation/edge.
 	GroupColumn = "group_id"
+	// ClaimsTable is the table that holds the claims relation/edge.
+	ClaimsTable = "redeem_code_claims"
+	// ClaimsInverseTable is the table name for the RedeemCodeClaim entity.
+	// It exists in this package in order to avoid circular dependency with the "redeemcodeclaim" package.
+	ClaimsInverseTable = "redeem_code_claims"
+	// ClaimsColumn is the table column denoting the claims relation/edge.
+	ClaimsColumn = "redeem_code_id"
 )
 
 // Columns holds all SQL columns for redeemcode fields.
@@ -66,6 +79,8 @@ var Columns = []string{
 	FieldUsedBy,
 	FieldUsedAt,
 	FieldNotes,
+	FieldMaxClaims,
+	FieldClaimedCount,
 	FieldCreatedAt,
 	FieldGroupID,
 	FieldValidityDays,
@@ -94,6 +109,10 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultMaxClaims holds the default value on creation for the "max_claims" field.
+	DefaultMaxClaims int
+	// DefaultClaimedCount holds the default value on creation for the "claimed_count" field.
+	DefaultClaimedCount int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultValidityDays holds the default value on creation for the "validity_days" field.
@@ -143,6 +162,16 @@ func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
 }
 
+// ByMaxClaims orders the results by the max_claims field.
+func ByMaxClaims(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaxClaims, opts...).ToFunc()
+}
+
+// ByClaimedCount orders the results by the claimed_count field.
+func ByClaimedCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClaimedCount, opts...).ToFunc()
+}
+
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
@@ -171,6 +200,20 @@ func ByGroupField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newGroupStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByClaimsCount orders the results by claims count.
+func ByClaimsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newClaimsStep(), opts...)
+	}
+}
+
+// ByClaims orders the results by claims terms.
+func ByClaims(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newClaimsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -183,5 +226,12 @@ func newGroupStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(GroupInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, GroupTable, GroupColumn),
+	)
+}
+func newClaimsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ClaimsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ClaimsTable, ClaimsColumn),
 	)
 }

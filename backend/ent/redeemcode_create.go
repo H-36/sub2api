@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcodeclaim"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
@@ -114,6 +115,34 @@ func (_c *RedeemCodeCreate) SetNillableNotes(v *string) *RedeemCodeCreate {
 	return _c
 }
 
+// SetMaxClaims sets the "max_claims" field.
+func (_c *RedeemCodeCreate) SetMaxClaims(v int) *RedeemCodeCreate {
+	_c.mutation.SetMaxClaims(v)
+	return _c
+}
+
+// SetNillableMaxClaims sets the "max_claims" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableMaxClaims(v *int) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetMaxClaims(*v)
+	}
+	return _c
+}
+
+// SetClaimedCount sets the "claimed_count" field.
+func (_c *RedeemCodeCreate) SetClaimedCount(v int) *RedeemCodeCreate {
+	_c.mutation.SetClaimedCount(v)
+	return _c
+}
+
+// SetNillableClaimedCount sets the "claimed_count" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableClaimedCount(v *int) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetClaimedCount(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *RedeemCodeCreate) SetCreatedAt(v time.Time) *RedeemCodeCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -180,6 +209,21 @@ func (_c *RedeemCodeCreate) SetGroup(v *Group) *RedeemCodeCreate {
 	return _c.SetGroupID(v.ID)
 }
 
+// AddClaimIDs adds the "claims" edge to the RedeemCodeClaim entity by IDs.
+func (_c *RedeemCodeCreate) AddClaimIDs(ids ...int64) *RedeemCodeCreate {
+	_c.mutation.AddClaimIDs(ids...)
+	return _c
+}
+
+// AddClaims adds the "claims" edges to the RedeemCodeClaim entity.
+func (_c *RedeemCodeCreate) AddClaims(v ...*RedeemCodeClaim) *RedeemCodeCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddClaimIDs(ids...)
+}
+
 // Mutation returns the RedeemCodeMutation object of the builder.
 func (_c *RedeemCodeCreate) Mutation() *RedeemCodeMutation {
 	return _c.mutation
@@ -227,6 +271,14 @@ func (_c *RedeemCodeCreate) defaults() {
 		v := redeemcode.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.MaxClaims(); !ok {
+		v := redeemcode.DefaultMaxClaims
+		_c.mutation.SetMaxClaims(v)
+	}
+	if _, ok := _c.mutation.ClaimedCount(); !ok {
+		v := redeemcode.DefaultClaimedCount
+		_c.mutation.SetClaimedCount(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := redeemcode.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -265,6 +317,12 @@ func (_c *RedeemCodeCreate) check() error {
 		if err := redeemcode.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.status": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.MaxClaims(); !ok {
+		return &ValidationError{Name: "max_claims", err: errors.New(`ent: missing required field "RedeemCode.max_claims"`)}
+	}
+	if _, ok := _c.mutation.ClaimedCount(); !ok {
+		return &ValidationError{Name: "claimed_count", err: errors.New(`ent: missing required field "RedeemCode.claimed_count"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "RedeemCode.created_at"`)}
@@ -323,6 +381,14 @@ func (_c *RedeemCodeCreate) createSpec() (*RedeemCode, *sqlgraph.CreateSpec) {
 		_spec.SetField(redeemcode.FieldNotes, field.TypeString, value)
 		_node.Notes = &value
 	}
+	if value, ok := _c.mutation.MaxClaims(); ok {
+		_spec.SetField(redeemcode.FieldMaxClaims, field.TypeInt, value)
+		_node.MaxClaims = value
+	}
+	if value, ok := _c.mutation.ClaimedCount(); ok {
+		_spec.SetField(redeemcode.FieldClaimedCount, field.TypeInt, value)
+		_node.ClaimedCount = value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(redeemcode.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -363,6 +429,22 @@ func (_c *RedeemCodeCreate) createSpec() (*RedeemCode, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.GroupID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ClaimsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   redeemcode.ClaimsTable,
+			Columns: []string{redeemcode.ClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
@@ -522,6 +604,42 @@ func (u *RedeemCodeUpsert) UpdateNotes() *RedeemCodeUpsert {
 // ClearNotes clears the value of the "notes" field.
 func (u *RedeemCodeUpsert) ClearNotes() *RedeemCodeUpsert {
 	u.SetNull(redeemcode.FieldNotes)
+	return u
+}
+
+// SetMaxClaims sets the "max_claims" field.
+func (u *RedeemCodeUpsert) SetMaxClaims(v int) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldMaxClaims, v)
+	return u
+}
+
+// UpdateMaxClaims sets the "max_claims" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateMaxClaims() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldMaxClaims)
+	return u
+}
+
+// AddMaxClaims adds v to the "max_claims" field.
+func (u *RedeemCodeUpsert) AddMaxClaims(v int) *RedeemCodeUpsert {
+	u.Add(redeemcode.FieldMaxClaims, v)
+	return u
+}
+
+// SetClaimedCount sets the "claimed_count" field.
+func (u *RedeemCodeUpsert) SetClaimedCount(v int) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldClaimedCount, v)
+	return u
+}
+
+// UpdateClaimedCount sets the "claimed_count" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateClaimedCount() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldClaimedCount)
+	return u
+}
+
+// AddClaimedCount adds v to the "claimed_count" field.
+func (u *RedeemCodeUpsert) AddClaimedCount(v int) *RedeemCodeUpsert {
+	u.Add(redeemcode.FieldClaimedCount, v)
 	return u
 }
 
@@ -729,6 +847,48 @@ func (u *RedeemCodeUpsertOne) UpdateNotes() *RedeemCodeUpsertOne {
 func (u *RedeemCodeUpsertOne) ClearNotes() *RedeemCodeUpsertOne {
 	return u.Update(func(s *RedeemCodeUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetMaxClaims sets the "max_claims" field.
+func (u *RedeemCodeUpsertOne) SetMaxClaims(v int) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetMaxClaims(v)
+	})
+}
+
+// AddMaxClaims adds v to the "max_claims" field.
+func (u *RedeemCodeUpsertOne) AddMaxClaims(v int) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.AddMaxClaims(v)
+	})
+}
+
+// UpdateMaxClaims sets the "max_claims" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateMaxClaims() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateMaxClaims()
+	})
+}
+
+// SetClaimedCount sets the "claimed_count" field.
+func (u *RedeemCodeUpsertOne) SetClaimedCount(v int) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetClaimedCount(v)
+	})
+}
+
+// AddClaimedCount adds v to the "claimed_count" field.
+func (u *RedeemCodeUpsertOne) AddClaimedCount(v int) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.AddClaimedCount(v)
+	})
+}
+
+// UpdateClaimedCount sets the "claimed_count" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateClaimedCount() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateClaimedCount()
 	})
 }
 
@@ -1108,6 +1268,48 @@ func (u *RedeemCodeUpsertBulk) UpdateNotes() *RedeemCodeUpsertBulk {
 func (u *RedeemCodeUpsertBulk) ClearNotes() *RedeemCodeUpsertBulk {
 	return u.Update(func(s *RedeemCodeUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetMaxClaims sets the "max_claims" field.
+func (u *RedeemCodeUpsertBulk) SetMaxClaims(v int) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetMaxClaims(v)
+	})
+}
+
+// AddMaxClaims adds v to the "max_claims" field.
+func (u *RedeemCodeUpsertBulk) AddMaxClaims(v int) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.AddMaxClaims(v)
+	})
+}
+
+// UpdateMaxClaims sets the "max_claims" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateMaxClaims() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateMaxClaims()
+	})
+}
+
+// SetClaimedCount sets the "claimed_count" field.
+func (u *RedeemCodeUpsertBulk) SetClaimedCount(v int) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetClaimedCount(v)
+	})
+}
+
+// AddClaimedCount adds v to the "claimed_count" field.
+func (u *RedeemCodeUpsertBulk) AddClaimedCount(v int) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.AddClaimedCount(v)
+	})
+}
+
+// UpdateClaimedCount sets the "claimed_count" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateClaimedCount() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateClaimedCount()
 	})
 }
 

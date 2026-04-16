@@ -28,6 +28,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcodeclaim"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
@@ -66,6 +67,7 @@ const (
 	TypePromoCodeUsage          = "PromoCodeUsage"
 	TypeProxy                   = "Proxy"
 	TypeRedeemCode              = "RedeemCode"
+	TypeRedeemCodeClaim         = "RedeemCodeClaim"
 	TypeSecuritySecret          = "SecuritySecret"
 	TypeSetting                 = "Setting"
 	TypeSubscriptionPlan        = "SubscriptionPlan"
@@ -19227,6 +19229,10 @@ type RedeemCodeMutation struct {
 	status           *string
 	used_at          *time.Time
 	notes            *string
+	max_claims       *int
+	addmax_claims    *int
+	claimed_count    *int
+	addclaimed_count *int
 	created_at       *time.Time
 	validity_days    *int
 	addvalidity_days *int
@@ -19235,6 +19241,9 @@ type RedeemCodeMutation struct {
 	cleareduser      bool
 	group            *int64
 	clearedgroup     bool
+	claims           map[int64]struct{}
+	removedclaims    map[int64]struct{}
+	clearedclaims    bool
 	done             bool
 	oldValue         func(context.Context) (*RedeemCode, error)
 	predicates       []predicate.RedeemCode
@@ -19649,6 +19658,118 @@ func (m *RedeemCodeMutation) ResetNotes() {
 	delete(m.clearedFields, redeemcode.FieldNotes)
 }
 
+// SetMaxClaims sets the "max_claims" field.
+func (m *RedeemCodeMutation) SetMaxClaims(i int) {
+	m.max_claims = &i
+	m.addmax_claims = nil
+}
+
+// MaxClaims returns the value of the "max_claims" field in the mutation.
+func (m *RedeemCodeMutation) MaxClaims() (r int, exists bool) {
+	v := m.max_claims
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxClaims returns the old "max_claims" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldMaxClaims(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxClaims is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxClaims requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxClaims: %w", err)
+	}
+	return oldValue.MaxClaims, nil
+}
+
+// AddMaxClaims adds i to the "max_claims" field.
+func (m *RedeemCodeMutation) AddMaxClaims(i int) {
+	if m.addmax_claims != nil {
+		*m.addmax_claims += i
+	} else {
+		m.addmax_claims = &i
+	}
+}
+
+// AddedMaxClaims returns the value that was added to the "max_claims" field in this mutation.
+func (m *RedeemCodeMutation) AddedMaxClaims() (r int, exists bool) {
+	v := m.addmax_claims
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxClaims resets all changes to the "max_claims" field.
+func (m *RedeemCodeMutation) ResetMaxClaims() {
+	m.max_claims = nil
+	m.addmax_claims = nil
+}
+
+// SetClaimedCount sets the "claimed_count" field.
+func (m *RedeemCodeMutation) SetClaimedCount(i int) {
+	m.claimed_count = &i
+	m.addclaimed_count = nil
+}
+
+// ClaimedCount returns the value of the "claimed_count" field in the mutation.
+func (m *RedeemCodeMutation) ClaimedCount() (r int, exists bool) {
+	v := m.claimed_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimedCount returns the old "claimed_count" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldClaimedCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimedCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimedCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimedCount: %w", err)
+	}
+	return oldValue.ClaimedCount, nil
+}
+
+// AddClaimedCount adds i to the "claimed_count" field.
+func (m *RedeemCodeMutation) AddClaimedCount(i int) {
+	if m.addclaimed_count != nil {
+		*m.addclaimed_count += i
+	} else {
+		m.addclaimed_count = &i
+	}
+}
+
+// AddedClaimedCount returns the value that was added to the "claimed_count" field in this mutation.
+func (m *RedeemCodeMutation) AddedClaimedCount() (r int, exists bool) {
+	v := m.addclaimed_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetClaimedCount resets all changes to the "claimed_count" field.
+func (m *RedeemCodeMutation) ResetClaimedCount() {
+	m.claimed_count = nil
+	m.addclaimed_count = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *RedeemCodeMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -19857,6 +19978,60 @@ func (m *RedeemCodeMutation) ResetGroup() {
 	m.clearedgroup = false
 }
 
+// AddClaimIDs adds the "claims" edge to the RedeemCodeClaim entity by ids.
+func (m *RedeemCodeMutation) AddClaimIDs(ids ...int64) {
+	if m.claims == nil {
+		m.claims = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.claims[ids[i]] = struct{}{}
+	}
+}
+
+// ClearClaims clears the "claims" edge to the RedeemCodeClaim entity.
+func (m *RedeemCodeMutation) ClearClaims() {
+	m.clearedclaims = true
+}
+
+// ClaimsCleared reports if the "claims" edge to the RedeemCodeClaim entity was cleared.
+func (m *RedeemCodeMutation) ClaimsCleared() bool {
+	return m.clearedclaims
+}
+
+// RemoveClaimIDs removes the "claims" edge to the RedeemCodeClaim entity by IDs.
+func (m *RedeemCodeMutation) RemoveClaimIDs(ids ...int64) {
+	if m.removedclaims == nil {
+		m.removedclaims = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.claims, ids[i])
+		m.removedclaims[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedClaims returns the removed IDs of the "claims" edge to the RedeemCodeClaim entity.
+func (m *RedeemCodeMutation) RemovedClaimsIDs() (ids []int64) {
+	for id := range m.removedclaims {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ClaimsIDs returns the "claims" edge IDs in the mutation.
+func (m *RedeemCodeMutation) ClaimsIDs() (ids []int64) {
+	for id := range m.claims {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetClaims resets all changes to the "claims" edge.
+func (m *RedeemCodeMutation) ResetClaims() {
+	m.claims = nil
+	m.clearedclaims = false
+	m.removedclaims = nil
+}
+
 // Where appends a list predicates to the RedeemCodeMutation builder.
 func (m *RedeemCodeMutation) Where(ps ...predicate.RedeemCode) {
 	m.predicates = append(m.predicates, ps...)
@@ -19891,7 +20066,7 @@ func (m *RedeemCodeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RedeemCodeMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 12)
 	if m.code != nil {
 		fields = append(fields, redeemcode.FieldCode)
 	}
@@ -19912,6 +20087,12 @@ func (m *RedeemCodeMutation) Fields() []string {
 	}
 	if m.notes != nil {
 		fields = append(fields, redeemcode.FieldNotes)
+	}
+	if m.max_claims != nil {
+		fields = append(fields, redeemcode.FieldMaxClaims)
+	}
+	if m.claimed_count != nil {
+		fields = append(fields, redeemcode.FieldClaimedCount)
 	}
 	if m.created_at != nil {
 		fields = append(fields, redeemcode.FieldCreatedAt)
@@ -19944,6 +20125,10 @@ func (m *RedeemCodeMutation) Field(name string) (ent.Value, bool) {
 		return m.UsedAt()
 	case redeemcode.FieldNotes:
 		return m.Notes()
+	case redeemcode.FieldMaxClaims:
+		return m.MaxClaims()
+	case redeemcode.FieldClaimedCount:
+		return m.ClaimedCount()
 	case redeemcode.FieldCreatedAt:
 		return m.CreatedAt()
 	case redeemcode.FieldGroupID:
@@ -19973,6 +20158,10 @@ func (m *RedeemCodeMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldUsedAt(ctx)
 	case redeemcode.FieldNotes:
 		return m.OldNotes(ctx)
+	case redeemcode.FieldMaxClaims:
+		return m.OldMaxClaims(ctx)
+	case redeemcode.FieldClaimedCount:
+		return m.OldClaimedCount(ctx)
 	case redeemcode.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case redeemcode.FieldGroupID:
@@ -20037,6 +20226,20 @@ func (m *RedeemCodeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetNotes(v)
 		return nil
+	case redeemcode.FieldMaxClaims:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxClaims(v)
+		return nil
+	case redeemcode.FieldClaimedCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimedCount(v)
+		return nil
 	case redeemcode.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -20069,6 +20272,12 @@ func (m *RedeemCodeMutation) AddedFields() []string {
 	if m.addvalue != nil {
 		fields = append(fields, redeemcode.FieldValue)
 	}
+	if m.addmax_claims != nil {
+		fields = append(fields, redeemcode.FieldMaxClaims)
+	}
+	if m.addclaimed_count != nil {
+		fields = append(fields, redeemcode.FieldClaimedCount)
+	}
 	if m.addvalidity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
 	}
@@ -20082,6 +20291,10 @@ func (m *RedeemCodeMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case redeemcode.FieldValue:
 		return m.AddedValue()
+	case redeemcode.FieldMaxClaims:
+		return m.AddedMaxClaims()
+	case redeemcode.FieldClaimedCount:
+		return m.AddedClaimedCount()
 	case redeemcode.FieldValidityDays:
 		return m.AddedValidityDays()
 	}
@@ -20099,6 +20312,20 @@ func (m *RedeemCodeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddValue(v)
+		return nil
+	case redeemcode.FieldMaxClaims:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxClaims(v)
+		return nil
+	case redeemcode.FieldClaimedCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddClaimedCount(v)
 		return nil
 	case redeemcode.FieldValidityDays:
 		v, ok := value.(int)
@@ -20182,6 +20409,12 @@ func (m *RedeemCodeMutation) ResetField(name string) error {
 	case redeemcode.FieldNotes:
 		m.ResetNotes()
 		return nil
+	case redeemcode.FieldMaxClaims:
+		m.ResetMaxClaims()
+		return nil
+	case redeemcode.FieldClaimedCount:
+		m.ResetClaimedCount()
+		return nil
 	case redeemcode.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
@@ -20197,12 +20430,15 @@ func (m *RedeemCodeMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *RedeemCodeMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.user != nil {
 		edges = append(edges, redeemcode.EdgeUser)
 	}
 	if m.group != nil {
 		edges = append(edges, redeemcode.EdgeGroup)
+	}
+	if m.claims != nil {
+		edges = append(edges, redeemcode.EdgeClaims)
 	}
 	return edges
 }
@@ -20219,30 +20455,50 @@ func (m *RedeemCodeMutation) AddedIDs(name string) []ent.Value {
 		if id := m.group; id != nil {
 			return []ent.Value{*id}
 		}
+	case redeemcode.EdgeClaims:
+		ids := make([]ent.Value, 0, len(m.claims))
+		for id := range m.claims {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *RedeemCodeMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
+	if m.removedclaims != nil {
+		edges = append(edges, redeemcode.EdgeClaims)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *RedeemCodeMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case redeemcode.EdgeClaims:
+		ids := make([]ent.Value, 0, len(m.removedclaims))
+		for id := range m.removedclaims {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *RedeemCodeMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.cleareduser {
 		edges = append(edges, redeemcode.EdgeUser)
 	}
 	if m.clearedgroup {
 		edges = append(edges, redeemcode.EdgeGroup)
+	}
+	if m.clearedclaims {
+		edges = append(edges, redeemcode.EdgeClaims)
 	}
 	return edges
 }
@@ -20255,6 +20511,8 @@ func (m *RedeemCodeMutation) EdgeCleared(name string) bool {
 		return m.cleareduser
 	case redeemcode.EdgeGroup:
 		return m.clearedgroup
+	case redeemcode.EdgeClaims:
+		return m.clearedclaims
 	}
 	return false
 }
@@ -20283,8 +20541,635 @@ func (m *RedeemCodeMutation) ResetEdge(name string) error {
 	case redeemcode.EdgeGroup:
 		m.ResetGroup()
 		return nil
+	case redeemcode.EdgeClaims:
+		m.ResetClaims()
+		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode edge %s", name)
+}
+
+// RedeemCodeClaimMutation represents an operation that mutates the RedeemCodeClaim nodes in the graph.
+type RedeemCodeClaimMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int64
+	amount             *float64
+	addamount          *float64
+	claimed_at         *time.Time
+	clearedFields      map[string]struct{}
+	redeem_code        *int64
+	clearedredeem_code bool
+	user               *int64
+	cleareduser        bool
+	done               bool
+	oldValue           func(context.Context) (*RedeemCodeClaim, error)
+	predicates         []predicate.RedeemCodeClaim
+}
+
+var _ ent.Mutation = (*RedeemCodeClaimMutation)(nil)
+
+// redeemcodeclaimOption allows management of the mutation configuration using functional options.
+type redeemcodeclaimOption func(*RedeemCodeClaimMutation)
+
+// newRedeemCodeClaimMutation creates new mutation for the RedeemCodeClaim entity.
+func newRedeemCodeClaimMutation(c config, op Op, opts ...redeemcodeclaimOption) *RedeemCodeClaimMutation {
+	m := &RedeemCodeClaimMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRedeemCodeClaim,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRedeemCodeClaimID sets the ID field of the mutation.
+func withRedeemCodeClaimID(id int64) redeemcodeclaimOption {
+	return func(m *RedeemCodeClaimMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RedeemCodeClaim
+		)
+		m.oldValue = func(ctx context.Context) (*RedeemCodeClaim, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RedeemCodeClaim.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRedeemCodeClaim sets the old RedeemCodeClaim of the mutation.
+func withRedeemCodeClaim(node *RedeemCodeClaim) redeemcodeclaimOption {
+	return func(m *RedeemCodeClaimMutation) {
+		m.oldValue = func(context.Context) (*RedeemCodeClaim, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RedeemCodeClaimMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RedeemCodeClaimMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RedeemCodeClaimMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RedeemCodeClaimMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RedeemCodeClaim.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRedeemCodeID sets the "redeem_code_id" field.
+func (m *RedeemCodeClaimMutation) SetRedeemCodeID(i int64) {
+	m.redeem_code = &i
+}
+
+// RedeemCodeID returns the value of the "redeem_code_id" field in the mutation.
+func (m *RedeemCodeClaimMutation) RedeemCodeID() (r int64, exists bool) {
+	v := m.redeem_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedeemCodeID returns the old "redeem_code_id" field's value of the RedeemCodeClaim entity.
+// If the RedeemCodeClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeClaimMutation) OldRedeemCodeID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedeemCodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedeemCodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedeemCodeID: %w", err)
+	}
+	return oldValue.RedeemCodeID, nil
+}
+
+// ResetRedeemCodeID resets all changes to the "redeem_code_id" field.
+func (m *RedeemCodeClaimMutation) ResetRedeemCodeID() {
+	m.redeem_code = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *RedeemCodeClaimMutation) SetUserID(i int64) {
+	m.user = &i
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *RedeemCodeClaimMutation) UserID() (r int64, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the RedeemCodeClaim entity.
+// If the RedeemCodeClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeClaimMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *RedeemCodeClaimMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *RedeemCodeClaimMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *RedeemCodeClaimMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the RedeemCodeClaim entity.
+// If the RedeemCodeClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeClaimMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *RedeemCodeClaimMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *RedeemCodeClaimMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *RedeemCodeClaimMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetClaimedAt sets the "claimed_at" field.
+func (m *RedeemCodeClaimMutation) SetClaimedAt(t time.Time) {
+	m.claimed_at = &t
+}
+
+// ClaimedAt returns the value of the "claimed_at" field in the mutation.
+func (m *RedeemCodeClaimMutation) ClaimedAt() (r time.Time, exists bool) {
+	v := m.claimed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimedAt returns the old "claimed_at" field's value of the RedeemCodeClaim entity.
+// If the RedeemCodeClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeClaimMutation) OldClaimedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimedAt: %w", err)
+	}
+	return oldValue.ClaimedAt, nil
+}
+
+// ResetClaimedAt resets all changes to the "claimed_at" field.
+func (m *RedeemCodeClaimMutation) ResetClaimedAt() {
+	m.claimed_at = nil
+}
+
+// ClearRedeemCode clears the "redeem_code" edge to the RedeemCode entity.
+func (m *RedeemCodeClaimMutation) ClearRedeemCode() {
+	m.clearedredeem_code = true
+	m.clearedFields[redeemcodeclaim.FieldRedeemCodeID] = struct{}{}
+}
+
+// RedeemCodeCleared reports if the "redeem_code" edge to the RedeemCode entity was cleared.
+func (m *RedeemCodeClaimMutation) RedeemCodeCleared() bool {
+	return m.clearedredeem_code
+}
+
+// RedeemCodeIDs returns the "redeem_code" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RedeemCodeID instead. It exists only for internal usage by the builders.
+func (m *RedeemCodeClaimMutation) RedeemCodeIDs() (ids []int64) {
+	if id := m.redeem_code; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRedeemCode resets all changes to the "redeem_code" edge.
+func (m *RedeemCodeClaimMutation) ResetRedeemCode() {
+	m.redeem_code = nil
+	m.clearedredeem_code = false
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *RedeemCodeClaimMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[redeemcodeclaim.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *RedeemCodeClaimMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *RedeemCodeClaimMutation) UserIDs() (ids []int64) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *RedeemCodeClaimMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the RedeemCodeClaimMutation builder.
+func (m *RedeemCodeClaimMutation) Where(ps ...predicate.RedeemCodeClaim) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RedeemCodeClaimMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RedeemCodeClaimMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RedeemCodeClaim, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RedeemCodeClaimMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RedeemCodeClaimMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RedeemCodeClaim).
+func (m *RedeemCodeClaimMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RedeemCodeClaimMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.redeem_code != nil {
+		fields = append(fields, redeemcodeclaim.FieldRedeemCodeID)
+	}
+	if m.user != nil {
+		fields = append(fields, redeemcodeclaim.FieldUserID)
+	}
+	if m.amount != nil {
+		fields = append(fields, redeemcodeclaim.FieldAmount)
+	}
+	if m.claimed_at != nil {
+		fields = append(fields, redeemcodeclaim.FieldClaimedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RedeemCodeClaimMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case redeemcodeclaim.FieldRedeemCodeID:
+		return m.RedeemCodeID()
+	case redeemcodeclaim.FieldUserID:
+		return m.UserID()
+	case redeemcodeclaim.FieldAmount:
+		return m.Amount()
+	case redeemcodeclaim.FieldClaimedAt:
+		return m.ClaimedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RedeemCodeClaimMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case redeemcodeclaim.FieldRedeemCodeID:
+		return m.OldRedeemCodeID(ctx)
+	case redeemcodeclaim.FieldUserID:
+		return m.OldUserID(ctx)
+	case redeemcodeclaim.FieldAmount:
+		return m.OldAmount(ctx)
+	case redeemcodeclaim.FieldClaimedAt:
+		return m.OldClaimedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RedeemCodeClaim field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RedeemCodeClaimMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case redeemcodeclaim.FieldRedeemCodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedeemCodeID(v)
+		return nil
+	case redeemcodeclaim.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case redeemcodeclaim.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case redeemcodeclaim.FieldClaimedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCodeClaim field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RedeemCodeClaimMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, redeemcodeclaim.FieldAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RedeemCodeClaimMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case redeemcodeclaim.FieldAmount:
+		return m.AddedAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RedeemCodeClaimMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case redeemcodeclaim.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCodeClaim numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RedeemCodeClaimMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RedeemCodeClaimMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RedeemCodeClaimMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown RedeemCodeClaim nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RedeemCodeClaimMutation) ResetField(name string) error {
+	switch name {
+	case redeemcodeclaim.FieldRedeemCodeID:
+		m.ResetRedeemCodeID()
+		return nil
+	case redeemcodeclaim.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case redeemcodeclaim.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case redeemcodeclaim.FieldClaimedAt:
+		m.ResetClaimedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCodeClaim field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RedeemCodeClaimMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.redeem_code != nil {
+		edges = append(edges, redeemcodeclaim.EdgeRedeemCode)
+	}
+	if m.user != nil {
+		edges = append(edges, redeemcodeclaim.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RedeemCodeClaimMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case redeemcodeclaim.EdgeRedeemCode:
+		if id := m.redeem_code; id != nil {
+			return []ent.Value{*id}
+		}
+	case redeemcodeclaim.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RedeemCodeClaimMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RedeemCodeClaimMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RedeemCodeClaimMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedredeem_code {
+		edges = append(edges, redeemcodeclaim.EdgeRedeemCode)
+	}
+	if m.cleareduser {
+		edges = append(edges, redeemcodeclaim.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RedeemCodeClaimMutation) EdgeCleared(name string) bool {
+	switch name {
+	case redeemcodeclaim.EdgeRedeemCode:
+		return m.clearedredeem_code
+	case redeemcodeclaim.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RedeemCodeClaimMutation) ClearEdge(name string) error {
+	switch name {
+	case redeemcodeclaim.EdgeRedeemCode:
+		m.ClearRedeemCode()
+		return nil
+	case redeemcodeclaim.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCodeClaim unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RedeemCodeClaimMutation) ResetEdge(name string) error {
+	switch name {
+	case redeemcodeclaim.EdgeRedeemCode:
+		m.ResetRedeemCode()
+		return nil
+	case redeemcodeclaim.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCodeClaim edge %s", name)
 }
 
 // SecuritySecretMutation represents an operation that mutates the SecuritySecret nodes in the graph.
@@ -28278,6 +29163,9 @@ type UserMutation struct {
 	redeem_codes                  map[int64]struct{}
 	removedredeem_codes           map[int64]struct{}
 	clearedredeem_codes           bool
+	redeem_code_claims            map[int64]struct{}
+	removedredeem_code_claims     map[int64]struct{}
+	clearedredeem_code_claims     bool
 	subscriptions                 map[int64]struct{}
 	removedsubscriptions          map[int64]struct{}
 	clearedsubscriptions          bool
@@ -29330,6 +30218,60 @@ func (m *UserMutation) ResetRedeemCodes() {
 	m.removedredeem_codes = nil
 }
 
+// AddRedeemCodeClaimIDs adds the "redeem_code_claims" edge to the RedeemCodeClaim entity by ids.
+func (m *UserMutation) AddRedeemCodeClaimIDs(ids ...int64) {
+	if m.redeem_code_claims == nil {
+		m.redeem_code_claims = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.redeem_code_claims[ids[i]] = struct{}{}
+	}
+}
+
+// ClearRedeemCodeClaims clears the "redeem_code_claims" edge to the RedeemCodeClaim entity.
+func (m *UserMutation) ClearRedeemCodeClaims() {
+	m.clearedredeem_code_claims = true
+}
+
+// RedeemCodeClaimsCleared reports if the "redeem_code_claims" edge to the RedeemCodeClaim entity was cleared.
+func (m *UserMutation) RedeemCodeClaimsCleared() bool {
+	return m.clearedredeem_code_claims
+}
+
+// RemoveRedeemCodeClaimIDs removes the "redeem_code_claims" edge to the RedeemCodeClaim entity by IDs.
+func (m *UserMutation) RemoveRedeemCodeClaimIDs(ids ...int64) {
+	if m.removedredeem_code_claims == nil {
+		m.removedredeem_code_claims = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.redeem_code_claims, ids[i])
+		m.removedredeem_code_claims[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedRedeemCodeClaims returns the removed IDs of the "redeem_code_claims" edge to the RedeemCodeClaim entity.
+func (m *UserMutation) RemovedRedeemCodeClaimsIDs() (ids []int64) {
+	for id := range m.removedredeem_code_claims {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// RedeemCodeClaimsIDs returns the "redeem_code_claims" edge IDs in the mutation.
+func (m *UserMutation) RedeemCodeClaimsIDs() (ids []int64) {
+	for id := range m.redeem_code_claims {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetRedeemCodeClaims resets all changes to the "redeem_code_claims" edge.
+func (m *UserMutation) ResetRedeemCodeClaims() {
+	m.redeem_code_claims = nil
+	m.clearedredeem_code_claims = false
+	m.removedredeem_code_claims = nil
+}
+
 // AddSubscriptionIDs adds the "subscriptions" edge to the UserSubscription entity by ids.
 func (m *UserMutation) AddSubscriptionIDs(ids ...int64) {
 	if m.subscriptions == nil {
@@ -30279,12 +31221,15 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 10)
+	edges := make([]string, 0, 11)
 	if m.api_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
 	if m.redeem_codes != nil {
 		edges = append(edges, user.EdgeRedeemCodes)
+	}
+	if m.redeem_code_claims != nil {
+		edges = append(edges, user.EdgeRedeemCodeClaims)
 	}
 	if m.subscriptions != nil {
 		edges = append(edges, user.EdgeSubscriptions)
@@ -30326,6 +31271,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 	case user.EdgeRedeemCodes:
 		ids := make([]ent.Value, 0, len(m.redeem_codes))
 		for id := range m.redeem_codes {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeRedeemCodeClaims:
+		ids := make([]ent.Value, 0, len(m.redeem_code_claims))
+		for id := range m.redeem_code_claims {
 			ids = append(ids, id)
 		}
 		return ids
@@ -30383,12 +31334,15 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 10)
+	edges := make([]string, 0, 11)
 	if m.removedapi_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
 	if m.removedredeem_codes != nil {
 		edges = append(edges, user.EdgeRedeemCodes)
+	}
+	if m.removedredeem_code_claims != nil {
+		edges = append(edges, user.EdgeRedeemCodeClaims)
 	}
 	if m.removedsubscriptions != nil {
 		edges = append(edges, user.EdgeSubscriptions)
@@ -30430,6 +31384,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 	case user.EdgeRedeemCodes:
 		ids := make([]ent.Value, 0, len(m.removedredeem_codes))
 		for id := range m.removedredeem_codes {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeRedeemCodeClaims:
+		ids := make([]ent.Value, 0, len(m.removedredeem_code_claims))
+		for id := range m.removedredeem_code_claims {
 			ids = append(ids, id)
 		}
 		return ids
@@ -30487,12 +31447,15 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 10)
+	edges := make([]string, 0, 11)
 	if m.clearedapi_keys {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
 	if m.clearedredeem_codes {
 		edges = append(edges, user.EdgeRedeemCodes)
+	}
+	if m.clearedredeem_code_claims {
+		edges = append(edges, user.EdgeRedeemCodeClaims)
 	}
 	if m.clearedsubscriptions {
 		edges = append(edges, user.EdgeSubscriptions)
@@ -30529,6 +31492,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedapi_keys
 	case user.EdgeRedeemCodes:
 		return m.clearedredeem_codes
+	case user.EdgeRedeemCodeClaims:
+		return m.clearedredeem_code_claims
 	case user.EdgeSubscriptions:
 		return m.clearedsubscriptions
 	case user.EdgeAssignedSubscriptions:
@@ -30566,6 +31531,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeRedeemCodes:
 		m.ResetRedeemCodes()
+		return nil
+	case user.EdgeRedeemCodeClaims:
+		m.ResetRedeemCodeClaims()
 		return nil
 	case user.EdgeSubscriptions:
 		m.ResetSubscriptions()

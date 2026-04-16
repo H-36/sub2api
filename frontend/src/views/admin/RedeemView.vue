@@ -88,6 +88,8 @@
                 'badge',
                 value === 'balance'
                   ? 'badge-success'
+                  : value === 'welfare'
+                    ? 'badge-warning'
                   : value === 'subscription'
                     ? 'badge-warning'
                     : 'badge-primary'
@@ -100,6 +102,17 @@
           <template #cell-value="{ value, row }">
             <span class="text-sm font-medium text-gray-900 dark:text-white">
               <template v-if="row.type === 'balance'">${{ value.toFixed(2) }}</template>
+              <template v-else-if="row.type === 'welfare'">
+                ${{ value.toFixed(2) }}
+                <span class="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                  / {{ t('admin.redeem.perClaim') }}
+                </span>
+                <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.redeem.totalAmount') }}:
+                  ${{ ((row.claimed_count ?? 0) * value).toFixed(2) }} /
+                  ${{ ((row.max_claims ?? 0) * value).toFixed(2) }}
+                </span>
+              </template>
               <template v-else-if="row.type === 'subscription'">
                 {{ row.validity_days || 30 }} {{ t('admin.redeem.days') }}
                 <span v-if="row.group" class="ml-1 text-xs text-gray-500 dark:text-gray-400"
@@ -107,6 +120,15 @@
                 >
               </template>
               <template v-else>{{ value }}</template>
+            </span>
+          </template>
+
+          <template #cell-claims="{ row }">
+            <span class="text-sm text-gray-500 dark:text-dark-400">
+              <template v-if="row.type === 'welfare'">
+                {{ row.claimed_count ?? 0 }}/{{ row.max_claims ?? 0 }}
+              </template>
+              <template v-else>-</template>
             </span>
           </template>
 
@@ -140,7 +162,7 @@
           <template #cell-actions="{ row }">
             <div class="flex items-center space-x-2">
               <button
-                v-if="row.status === 'unused'"
+                v-if="canDeleteCode(row)"
                 @click="handleDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
@@ -221,43 +243,59 @@
             <div>
               <label class="input-label">
                 {{ t('admin.redeem.customCode') }}
-                <span class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
+                <span v-if="!requiresCustomCode" class="ml-1 text-xs font-normal text-gray-400"
+                  >({{ t('common.optional') }})</span
+                >
               </label>
               <input
                 v-model.trim="generateForm.code"
                 type="text"
                 maxlength="32"
                 class="input font-mono"
-                :placeholder="t('admin.redeem.customCodePlaceholder')"
+                :placeholder="
+                  requiresCustomCode
+                    ? t('admin.redeem.welfareCodePlaceholder')
+                    : t('admin.redeem.customCodePlaceholder')
+                "
               />
               <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
                 {{
-                  hasCustomCode
-                    ? t('admin.redeem.countLockedByCustomCode')
-                    : t('admin.redeem.customCodeHint')
+                  requiresCustomCode
+                    ? t('admin.redeem.welfareCodeRequiredHint')
+                    : hasLockedCount
+                      ? t('admin.redeem.countLockedByCustomCode')
+                      : t('admin.redeem.customCodeHint')
                 }}
               </p>
             </div>
-            <!-- 余额/并发类型：显示数值输入 -->
+            <!-- 余额/并发/福利类型：显示数值输入 -->
             <div v-if="generateForm.type !== 'subscription' && generateForm.type !== 'invitation'">
               <label class="input-label">
                 {{
                   generateForm.type === 'balance'
                     ? t('admin.redeem.amount')
-                    : t('admin.redeem.columns.value')
+                    : generateForm.type === 'welfare'
+                      ? t('admin.redeem.amountPerClaim')
+                      : t('admin.redeem.columns.value')
                 }}
               </label>
               <input
                 v-model.number="generateForm.value"
                 type="number"
-                :step="generateForm.type === 'balance' ? '0.01' : '1'"
-                :min="generateForm.type === 'balance' ? '0.01' : '1'"
+                :step="generateForm.type === 'balance' || generateForm.type === 'welfare' ? '0.01' : '1'"
+                :min="generateForm.type === 'balance' || generateForm.type === 'welfare' ? '0.01' : '1'"
                 required
                 class="input"
               />
+              <p v-if="isWelfareType" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                {{ t('admin.redeem.welfareTotalPreview', { total: welfareTotalValue }) }}
+              </p>
             </div>
             <!-- 邀请码类型：显示提示信息 -->
-            <div v-if="generateForm.type === 'invitation'" class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+            <div
+              v-if="generateForm.type === 'invitation'"
+              class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20"
+            >
               <p class="text-sm text-blue-700 dark:text-blue-300">
                 {{ t('admin.redeem.invitationHint') }}
               </p>
@@ -308,16 +346,19 @@
               </div>
             </template>
             <div>
-              <label class="input-label">{{ t('admin.redeem.count') }}</label>
+              <label class="input-label">{{ generateCountLabel }}</label>
               <input
                 v-model.number="generateForm.count"
                 type="number"
                 min="1"
-                max="100"
+                :max="isWelfareType ? '10000' : '100'"
                 required
-                :disabled="hasCustomCode"
-                :class="['input', hasCustomCode ? 'cursor-not-allowed opacity-60' : '']"
+                :disabled="hasLockedCount"
+                :class="['input', hasLockedCount ? 'cursor-not-allowed opacity-60' : '']"
               />
+              <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                {{ generateCountHint }}
+              </p>
             </div>
             <div class="flex justify-end gap-3 pt-2">
               <button type="button" @click="showGenerateDialog = false" class="btn btn-secondary">
@@ -525,6 +566,7 @@ const columns = computed<Column[]>(() => [
   { key: 'type', label: t('admin.redeem.columns.type'), sortable: true },
   { key: 'value', label: t('admin.redeem.columns.value'), sortable: true },
   { key: 'status', label: t('admin.redeem.columns.status'), sortable: true },
+  { key: 'claims', label: t('admin.redeem.columns.claims') },
   { key: 'used_by', label: t('admin.redeem.columns.usedBy') },
   { key: 'used_at', label: t('admin.redeem.columns.usedAt'), sortable: true },
   { key: 'actions', label: t('admin.redeem.columns.actions') }
@@ -534,7 +576,8 @@ const typeOptions = computed(() => [
   { value: 'balance', label: t('admin.redeem.balance') },
   { value: 'concurrency', label: t('admin.redeem.concurrency') },
   { value: 'subscription', label: t('admin.redeem.subscription') },
-  { value: 'invitation', label: t('admin.redeem.invitation') }
+  { value: 'invitation', label: t('admin.redeem.invitation') },
+  { value: 'welfare', label: t('admin.redeem.welfare') }
 ])
 
 const filterTypeOptions = computed(() => [
@@ -542,7 +585,8 @@ const filterTypeOptions = computed(() => [
   { value: 'balance', label: t('admin.redeem.balance') },
   { value: 'concurrency', label: t('admin.redeem.concurrency') },
   { value: 'subscription', label: t('admin.redeem.subscription') },
-  { value: 'invitation', label: t('admin.redeem.invitation') }
+  { value: 'invitation', label: t('admin.redeem.invitation') },
+  { value: 'welfare', label: t('admin.redeem.welfare') }
 ])
 
 const filterStatusOptions = computed(() => [
@@ -588,6 +632,16 @@ const generateForm = reactive({
 })
 
 const hasCustomCode = computed(() => generateForm.code.trim().length > 0)
+const isWelfareType = computed(() => generateForm.type === 'welfare')
+const requiresCustomCode = computed(() => isWelfareType.value)
+const hasLockedCount = computed(() => hasCustomCode.value && !isWelfareType.value)
+const generateCountLabel = computed(() =>
+  isWelfareType.value ? t('admin.redeem.claimCount') : t('admin.redeem.count')
+)
+const generateCountHint = computed(() =>
+  isWelfareType.value ? t('admin.redeem.claimCountHint') : t('admin.redeem.countHint')
+)
+const welfareTotalValue = computed(() => (generateForm.value * generateForm.count).toFixed(2))
 
 // 监听类型变化，邀请码类型时自动设置 value 为 0
 watch(
@@ -598,11 +652,14 @@ watch(
     } else if (generateForm.value === 0) {
       generateForm.value = 10
     }
+    if (newType !== 'welfare' && hasCustomCode.value) {
+      generateForm.count = 1
+    }
   }
 )
 
 watch(hasCustomCode, (enabled) => {
-  if (enabled) {
+  if (enabled && !isWelfareType.value) {
     generateForm.count = 1
   }
 })
@@ -688,6 +745,10 @@ const handleGenerateCodes = async () => {
     appStore.showError(t('admin.redeem.groupRequired'))
     return
   }
+  if (requiresCustomCode.value && !generateForm.code.trim()) {
+    appStore.showError(t('admin.redeem.welfareCodeRequired'))
+    return
+  }
 
   generating.value = true
   try {
@@ -704,6 +765,9 @@ const handleGenerateCodes = async () => {
     showResultDialog.value = true
     // 重置表单
     generateForm.code = ''
+    generateForm.type = 'balance'
+    generateForm.value = 10
+    generateForm.count = 1
     generateForm.group_id = null
     generateForm.validity_days = 30
     loadCodes()
@@ -751,6 +815,18 @@ const handleDelete = (code: RedeemCode) => {
   showDeleteDialog.value = true
 }
 
+const isWelfareCode = (code: RedeemCode) => code.type === 'welfare'
+
+const canDeleteCode = (code: RedeemCode) => {
+  if (code.status !== 'unused') {
+    return false
+  }
+  if (isWelfareCode(code)) {
+    return (code.claimed_count ?? 0) === 0
+  }
+  return true
+}
+
 const confirmDelete = async () => {
   if (!deletingCode.value) return
 
@@ -770,7 +846,7 @@ const confirmDeleteUnused = async () => {
   try {
     // Get all unused codes and delete them
     const unusedCodesResponse = await adminAPI.redeem.list(1, 1000, { status: 'unused' })
-    const unusedCodeIds = unusedCodesResponse.items.map((code) => code.id)
+    const unusedCodeIds = unusedCodesResponse.items.filter(canDeleteCode).map((code) => code.id)
 
     if (unusedCodeIds.length === 0) {
       appStore.showInfo(t('admin.redeem.noUnusedCodes'))

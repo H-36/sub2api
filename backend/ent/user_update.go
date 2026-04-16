@@ -18,6 +18,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcodeclaim"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -363,6 +364,21 @@ func (_u *UserUpdate) AddRedeemCodes(v ...*RedeemCode) *UserUpdate {
 	return _u.AddRedeemCodeIDs(ids...)
 }
 
+// AddRedeemCodeClaimIDs adds the "redeem_code_claims" edge to the RedeemCodeClaim entity by IDs.
+func (_u *UserUpdate) AddRedeemCodeClaimIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddRedeemCodeClaimIDs(ids...)
+	return _u
+}
+
+// AddRedeemCodeClaims adds the "redeem_code_claims" edges to the RedeemCodeClaim entity.
+func (_u *UserUpdate) AddRedeemCodeClaims(v ...*RedeemCodeClaim) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRedeemCodeClaimIDs(ids...)
+}
+
 // AddSubscriptionIDs adds the "subscriptions" edge to the UserSubscription entity by IDs.
 func (_u *UserUpdate) AddSubscriptionIDs(ids ...int64) *UserUpdate {
 	_u.mutation.AddSubscriptionIDs(ids...)
@@ -528,6 +544,27 @@ func (_u *UserUpdate) RemoveRedeemCodes(v ...*RedeemCode) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveRedeemCodeIDs(ids...)
+}
+
+// ClearRedeemCodeClaims clears all "redeem_code_claims" edges to the RedeemCodeClaim entity.
+func (_u *UserUpdate) ClearRedeemCodeClaims() *UserUpdate {
+	_u.mutation.ClearRedeemCodeClaims()
+	return _u
+}
+
+// RemoveRedeemCodeClaimIDs removes the "redeem_code_claims" edge to RedeemCodeClaim entities by IDs.
+func (_u *UserUpdate) RemoveRedeemCodeClaimIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveRedeemCodeClaimIDs(ids...)
+	return _u
+}
+
+// RemoveRedeemCodeClaims removes "redeem_code_claims" edges to RedeemCodeClaim entities.
+func (_u *UserUpdate) RemoveRedeemCodeClaims(v ...*RedeemCodeClaim) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRedeemCodeClaimIDs(ids...)
 }
 
 // ClearSubscriptions clears all "subscriptions" edges to the UserSubscription entity.
@@ -943,6 +980,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(redeemcode.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.RedeemCodeClaimsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedeemCodeClaimsTable,
+			Columns: []string{user.RedeemCodeClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRedeemCodeClaimsIDs(); len(nodes) > 0 && !_u.mutation.RedeemCodeClaimsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedeemCodeClaimsTable,
+			Columns: []string{user.RedeemCodeClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RedeemCodeClaimsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedeemCodeClaimsTable,
+			Columns: []string{user.RedeemCodeClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -1668,6 +1750,21 @@ func (_u *UserUpdateOne) AddRedeemCodes(v ...*RedeemCode) *UserUpdateOne {
 	return _u.AddRedeemCodeIDs(ids...)
 }
 
+// AddRedeemCodeClaimIDs adds the "redeem_code_claims" edge to the RedeemCodeClaim entity by IDs.
+func (_u *UserUpdateOne) AddRedeemCodeClaimIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddRedeemCodeClaimIDs(ids...)
+	return _u
+}
+
+// AddRedeemCodeClaims adds the "redeem_code_claims" edges to the RedeemCodeClaim entity.
+func (_u *UserUpdateOne) AddRedeemCodeClaims(v ...*RedeemCodeClaim) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRedeemCodeClaimIDs(ids...)
+}
+
 // AddSubscriptionIDs adds the "subscriptions" edge to the UserSubscription entity by IDs.
 func (_u *UserUpdateOne) AddSubscriptionIDs(ids ...int64) *UserUpdateOne {
 	_u.mutation.AddSubscriptionIDs(ids...)
@@ -1833,6 +1930,27 @@ func (_u *UserUpdateOne) RemoveRedeemCodes(v ...*RedeemCode) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveRedeemCodeIDs(ids...)
+}
+
+// ClearRedeemCodeClaims clears all "redeem_code_claims" edges to the RedeemCodeClaim entity.
+func (_u *UserUpdateOne) ClearRedeemCodeClaims() *UserUpdateOne {
+	_u.mutation.ClearRedeemCodeClaims()
+	return _u
+}
+
+// RemoveRedeemCodeClaimIDs removes the "redeem_code_claims" edge to RedeemCodeClaim entities by IDs.
+func (_u *UserUpdateOne) RemoveRedeemCodeClaimIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveRedeemCodeClaimIDs(ids...)
+	return _u
+}
+
+// RemoveRedeemCodeClaims removes "redeem_code_claims" edges to RedeemCodeClaim entities.
+func (_u *UserUpdateOne) RemoveRedeemCodeClaims(v ...*RedeemCodeClaim) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRedeemCodeClaimIDs(ids...)
 }
 
 // ClearSubscriptions clears all "subscriptions" edges to the UserSubscription entity.
@@ -2278,6 +2396,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(redeemcode.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.RedeemCodeClaimsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedeemCodeClaimsTable,
+			Columns: []string{user.RedeemCodeClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRedeemCodeClaimsIDs(); len(nodes) > 0 && !_u.mutation.RedeemCodeClaimsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedeemCodeClaimsTable,
+			Columns: []string{user.RedeemCodeClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RedeemCodeClaimsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedeemCodeClaimsTable,
+			Columns: []string{user.RedeemCodeClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

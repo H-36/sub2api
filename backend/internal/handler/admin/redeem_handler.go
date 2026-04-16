@@ -33,9 +33,9 @@ func NewRedeemHandler(adminService service.AdminService, redeemService *service.
 
 // GenerateRedeemCodesRequest represents generate redeem codes request
 type GenerateRedeemCodesRequest struct {
-	Count        int     `json:"count" binding:"required,min=1,max=100"`
+	Count        int     `json:"count" binding:"required,min=1"`
 	Code         string  `json:"code" binding:"omitempty,min=3,max=32"` // 可选，自定义兑换码；为空则自动生成
-	Type         string  `json:"type" binding:"required,oneof=balance concurrency subscription invitation"`
+	Type         string  `json:"type" binding:"required,oneof=balance concurrency subscription invitation welfare"`
 	Value        float64 `json:"value"`
 	GroupID      *int64  `json:"group_id"`      // 订阅类型必填
 	ValidityDays int     `json:"validity_days"` // 订阅类型使用，正数增加/负数退款扣减
@@ -112,7 +112,11 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 		response.BadRequest(c, "code must be at least 3 characters long")
 		return
 	}
-	if req.Code != "" && req.Count != 1 {
+	if req.Type == service.RedeemTypeWelfare && req.Code == "" {
+		response.BadRequest(c, "custom code is required for welfare redeem code")
+		return
+	}
+	if req.Type != service.RedeemTypeWelfare && req.Code != "" && req.Count != 1 {
 		response.BadRequest(c, "count must be 1 when custom code is provided")
 		return
 	}
@@ -301,9 +305,11 @@ func (h *RedeemHandler) GetStats(c *gin.Context) {
 		"expired_codes":           0,
 		"total_value_distributed": 0.0,
 		"by_type": gin.H{
-			"balance":     0,
-			"concurrency": 0,
-			"trial":       0,
+			"balance":      0,
+			"concurrency":  0,
+			"subscription": 0,
+			"invitation":   0,
+			"welfare":      0,
 		},
 	})
 }
@@ -332,7 +338,7 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 	writer := csv.NewWriter(&buf)
 
 	// Write header
-	if err := writer.Write([]string{"id", "code", "type", "value", "status", "used_by", "used_by_email", "used_at", "created_at"}); err != nil {
+	if err := writer.Write([]string{"id", "code", "type", "value", "status", "max_claims", "claimed_count", "used_by", "used_by_email", "used_at", "created_at"}); err != nil {
 		response.InternalError(c, "Failed to export redeem codes: "+err.Error())
 		return
 	}
@@ -357,6 +363,8 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 			code.Type,
 			fmt.Sprintf("%.2f", code.Value),
 			code.Status,
+			fmt.Sprintf("%d", code.MaxClaims),
+			fmt.Sprintf("%d", code.ClaimedCount),
 			usedBy,
 			usedByEmail,
 			usedAt,

@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcodeclaim"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
@@ -153,6 +154,48 @@ func (_u *RedeemCodeUpdate) ClearNotes() *RedeemCodeUpdate {
 	return _u
 }
 
+// SetMaxClaims sets the "max_claims" field.
+func (_u *RedeemCodeUpdate) SetMaxClaims(v int) *RedeemCodeUpdate {
+	_u.mutation.ResetMaxClaims()
+	_u.mutation.SetMaxClaims(v)
+	return _u
+}
+
+// SetNillableMaxClaims sets the "max_claims" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableMaxClaims(v *int) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetMaxClaims(*v)
+	}
+	return _u
+}
+
+// AddMaxClaims adds value to the "max_claims" field.
+func (_u *RedeemCodeUpdate) AddMaxClaims(v int) *RedeemCodeUpdate {
+	_u.mutation.AddMaxClaims(v)
+	return _u
+}
+
+// SetClaimedCount sets the "claimed_count" field.
+func (_u *RedeemCodeUpdate) SetClaimedCount(v int) *RedeemCodeUpdate {
+	_u.mutation.ResetClaimedCount()
+	_u.mutation.SetClaimedCount(v)
+	return _u
+}
+
+// SetNillableClaimedCount sets the "claimed_count" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableClaimedCount(v *int) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetClaimedCount(*v)
+	}
+	return _u
+}
+
+// AddClaimedCount adds value to the "claimed_count" field.
+func (_u *RedeemCodeUpdate) AddClaimedCount(v int) *RedeemCodeUpdate {
+	_u.mutation.AddClaimedCount(v)
+	return _u
+}
+
 // SetGroupID sets the "group_id" field.
 func (_u *RedeemCodeUpdate) SetGroupID(v int64) *RedeemCodeUpdate {
 	_u.mutation.SetGroupID(v)
@@ -218,6 +261,21 @@ func (_u *RedeemCodeUpdate) SetGroup(v *Group) *RedeemCodeUpdate {
 	return _u.SetGroupID(v.ID)
 }
 
+// AddClaimIDs adds the "claims" edge to the RedeemCodeClaim entity by IDs.
+func (_u *RedeemCodeUpdate) AddClaimIDs(ids ...int64) *RedeemCodeUpdate {
+	_u.mutation.AddClaimIDs(ids...)
+	return _u
+}
+
+// AddClaims adds the "claims" edges to the RedeemCodeClaim entity.
+func (_u *RedeemCodeUpdate) AddClaims(v ...*RedeemCodeClaim) *RedeemCodeUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddClaimIDs(ids...)
+}
+
 // Mutation returns the RedeemCodeMutation object of the builder.
 func (_u *RedeemCodeUpdate) Mutation() *RedeemCodeMutation {
 	return _u.mutation
@@ -233,6 +291,27 @@ func (_u *RedeemCodeUpdate) ClearUser() *RedeemCodeUpdate {
 func (_u *RedeemCodeUpdate) ClearGroup() *RedeemCodeUpdate {
 	_u.mutation.ClearGroup()
 	return _u
+}
+
+// ClearClaims clears all "claims" edges to the RedeemCodeClaim entity.
+func (_u *RedeemCodeUpdate) ClearClaims() *RedeemCodeUpdate {
+	_u.mutation.ClearClaims()
+	return _u
+}
+
+// RemoveClaimIDs removes the "claims" edge to RedeemCodeClaim entities by IDs.
+func (_u *RedeemCodeUpdate) RemoveClaimIDs(ids ...int64) *RedeemCodeUpdate {
+	_u.mutation.RemoveClaimIDs(ids...)
+	return _u
+}
+
+// RemoveClaims removes "claims" edges to RedeemCodeClaim entities.
+func (_u *RedeemCodeUpdate) RemoveClaims(v ...*RedeemCodeClaim) *RedeemCodeUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveClaimIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -321,6 +400,18 @@ func (_u *RedeemCodeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(redeemcode.FieldNotes, field.TypeString)
 	}
+	if value, ok := _u.mutation.MaxClaims(); ok {
+		_spec.SetField(redeemcode.FieldMaxClaims, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMaxClaims(); ok {
+		_spec.AddField(redeemcode.FieldMaxClaims, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ClaimedCount(); ok {
+		_spec.SetField(redeemcode.FieldClaimedCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedClaimedCount(); ok {
+		_spec.AddField(redeemcode.FieldClaimedCount, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.ValidityDays(); ok {
 		_spec.SetField(redeemcode.FieldValidityDays, field.TypeInt, value)
 	}
@@ -378,6 +469,51 @@ func (_u *RedeemCodeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ClaimsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   redeemcode.ClaimsTable,
+			Columns: []string{redeemcode.ClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedClaimsIDs(); len(nodes) > 0 && !_u.mutation.ClaimsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   redeemcode.ClaimsTable,
+			Columns: []string{redeemcode.ClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ClaimsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   redeemcode.ClaimsTable,
+			Columns: []string{redeemcode.ClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -528,6 +664,48 @@ func (_u *RedeemCodeUpdateOne) ClearNotes() *RedeemCodeUpdateOne {
 	return _u
 }
 
+// SetMaxClaims sets the "max_claims" field.
+func (_u *RedeemCodeUpdateOne) SetMaxClaims(v int) *RedeemCodeUpdateOne {
+	_u.mutation.ResetMaxClaims()
+	_u.mutation.SetMaxClaims(v)
+	return _u
+}
+
+// SetNillableMaxClaims sets the "max_claims" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableMaxClaims(v *int) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetMaxClaims(*v)
+	}
+	return _u
+}
+
+// AddMaxClaims adds value to the "max_claims" field.
+func (_u *RedeemCodeUpdateOne) AddMaxClaims(v int) *RedeemCodeUpdateOne {
+	_u.mutation.AddMaxClaims(v)
+	return _u
+}
+
+// SetClaimedCount sets the "claimed_count" field.
+func (_u *RedeemCodeUpdateOne) SetClaimedCount(v int) *RedeemCodeUpdateOne {
+	_u.mutation.ResetClaimedCount()
+	_u.mutation.SetClaimedCount(v)
+	return _u
+}
+
+// SetNillableClaimedCount sets the "claimed_count" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableClaimedCount(v *int) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetClaimedCount(*v)
+	}
+	return _u
+}
+
+// AddClaimedCount adds value to the "claimed_count" field.
+func (_u *RedeemCodeUpdateOne) AddClaimedCount(v int) *RedeemCodeUpdateOne {
+	_u.mutation.AddClaimedCount(v)
+	return _u
+}
+
 // SetGroupID sets the "group_id" field.
 func (_u *RedeemCodeUpdateOne) SetGroupID(v int64) *RedeemCodeUpdateOne {
 	_u.mutation.SetGroupID(v)
@@ -593,6 +771,21 @@ func (_u *RedeemCodeUpdateOne) SetGroup(v *Group) *RedeemCodeUpdateOne {
 	return _u.SetGroupID(v.ID)
 }
 
+// AddClaimIDs adds the "claims" edge to the RedeemCodeClaim entity by IDs.
+func (_u *RedeemCodeUpdateOne) AddClaimIDs(ids ...int64) *RedeemCodeUpdateOne {
+	_u.mutation.AddClaimIDs(ids...)
+	return _u
+}
+
+// AddClaims adds the "claims" edges to the RedeemCodeClaim entity.
+func (_u *RedeemCodeUpdateOne) AddClaims(v ...*RedeemCodeClaim) *RedeemCodeUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddClaimIDs(ids...)
+}
+
 // Mutation returns the RedeemCodeMutation object of the builder.
 func (_u *RedeemCodeUpdateOne) Mutation() *RedeemCodeMutation {
 	return _u.mutation
@@ -608,6 +801,27 @@ func (_u *RedeemCodeUpdateOne) ClearUser() *RedeemCodeUpdateOne {
 func (_u *RedeemCodeUpdateOne) ClearGroup() *RedeemCodeUpdateOne {
 	_u.mutation.ClearGroup()
 	return _u
+}
+
+// ClearClaims clears all "claims" edges to the RedeemCodeClaim entity.
+func (_u *RedeemCodeUpdateOne) ClearClaims() *RedeemCodeUpdateOne {
+	_u.mutation.ClearClaims()
+	return _u
+}
+
+// RemoveClaimIDs removes the "claims" edge to RedeemCodeClaim entities by IDs.
+func (_u *RedeemCodeUpdateOne) RemoveClaimIDs(ids ...int64) *RedeemCodeUpdateOne {
+	_u.mutation.RemoveClaimIDs(ids...)
+	return _u
+}
+
+// RemoveClaims removes "claims" edges to RedeemCodeClaim entities.
+func (_u *RedeemCodeUpdateOne) RemoveClaims(v ...*RedeemCodeClaim) *RedeemCodeUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveClaimIDs(ids...)
 }
 
 // Where appends a list predicates to the RedeemCodeUpdate builder.
@@ -726,6 +940,18 @@ func (_u *RedeemCodeUpdateOne) sqlSave(ctx context.Context) (_node *RedeemCode, 
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(redeemcode.FieldNotes, field.TypeString)
 	}
+	if value, ok := _u.mutation.MaxClaims(); ok {
+		_spec.SetField(redeemcode.FieldMaxClaims, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMaxClaims(); ok {
+		_spec.AddField(redeemcode.FieldMaxClaims, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ClaimedCount(); ok {
+		_spec.SetField(redeemcode.FieldClaimedCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedClaimedCount(); ok {
+		_spec.AddField(redeemcode.FieldClaimedCount, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.ValidityDays(); ok {
 		_spec.SetField(redeemcode.FieldValidityDays, field.TypeInt, value)
 	}
@@ -783,6 +1009,51 @@ func (_u *RedeemCodeUpdateOne) sqlSave(ctx context.Context) (_node *RedeemCode, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ClaimsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   redeemcode.ClaimsTable,
+			Columns: []string{redeemcode.ClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedClaimsIDs(); len(nodes) > 0 && !_u.mutation.ClaimsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   redeemcode.ClaimsTable,
+			Columns: []string{redeemcode.ClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ClaimsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   redeemcode.ClaimsTable,
+			Columns: []string{redeemcode.ClaimsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcodeclaim.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

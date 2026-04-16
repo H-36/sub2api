@@ -20,6 +20,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcodeclaim"
 	"github.com/Wei-Shaw/sub2api/ent/schema"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
@@ -859,14 +860,28 @@ func init() {
 	redeemcode.DefaultStatus = redeemcodeDescStatus.Default.(string)
 	// redeemcode.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	redeemcode.StatusValidator = redeemcodeDescStatus.Validators[0].(func(string) error)
+	// redeemcodeDescMaxClaims is the schema descriptor for max_claims field.
+	redeemcodeDescMaxClaims := redeemcodeFields[7].Descriptor()
+	// redeemcode.DefaultMaxClaims holds the default value on creation for the max_claims field.
+	redeemcode.DefaultMaxClaims = redeemcodeDescMaxClaims.Default.(int)
+	// redeemcodeDescClaimedCount is the schema descriptor for claimed_count field.
+	redeemcodeDescClaimedCount := redeemcodeFields[8].Descriptor()
+	// redeemcode.DefaultClaimedCount holds the default value on creation for the claimed_count field.
+	redeemcode.DefaultClaimedCount = redeemcodeDescClaimedCount.Default.(int)
 	// redeemcodeDescCreatedAt is the schema descriptor for created_at field.
-	redeemcodeDescCreatedAt := redeemcodeFields[7].Descriptor()
+	redeemcodeDescCreatedAt := redeemcodeFields[9].Descriptor()
 	// redeemcode.DefaultCreatedAt holds the default value on creation for the created_at field.
 	redeemcode.DefaultCreatedAt = redeemcodeDescCreatedAt.Default.(func() time.Time)
 	// redeemcodeDescValidityDays is the schema descriptor for validity_days field.
-	redeemcodeDescValidityDays := redeemcodeFields[9].Descriptor()
+	redeemcodeDescValidityDays := redeemcodeFields[11].Descriptor()
 	// redeemcode.DefaultValidityDays holds the default value on creation for the validity_days field.
 	redeemcode.DefaultValidityDays = redeemcodeDescValidityDays.Default.(int)
+	redeemcodeclaimFields := schema.RedeemCodeClaim{}.Fields()
+	_ = redeemcodeclaimFields
+	// redeemcodeclaimDescClaimedAt is the schema descriptor for claimed_at field.
+	redeemcodeclaimDescClaimedAt := redeemcodeclaimFields[3].Descriptor()
+	// redeemcodeclaim.DefaultClaimedAt holds the default value on creation for the claimed_at field.
+	redeemcodeclaim.DefaultClaimedAt = redeemcodeclaimDescClaimedAt.Default.(func() time.Time)
 	securitysecretMixin := schema.SecuritySecret{}.Mixin()
 	securitysecretMixinFields0 := securitysecretMixin[0].Fields()
 	_ = securitysecretMixinFields0

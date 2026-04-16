@@ -249,6 +249,7 @@ func (s *proxyRepoStub) ListAccountSummariesByProxyID(ctx context.Context, proxy
 
 type redeemRepoStub struct {
 	deleteErrByID map[int64]error
+	codeByID      map[int64]*RedeemCode
 	deletedIDs    []int64
 }
 
@@ -261,7 +262,13 @@ func (s *redeemRepoStub) CreateBatch(ctx context.Context, codes []RedeemCode) er
 }
 
 func (s *redeemRepoStub) GetByID(ctx context.Context, id int64) (*RedeemCode, error) {
-	panic("unexpected GetByID call")
+	if s.codeByID != nil {
+		if code, ok := s.codeByID[id]; ok {
+			copied := *code
+			return &copied, nil
+		}
+	}
+	return &RedeemCode{ID: id, Status: StatusUnused}, nil
 }
 
 func (s *redeemRepoStub) GetByCode(ctx context.Context, code string) (*RedeemCode, error) {
@@ -284,6 +291,18 @@ func (s *redeemRepoStub) Delete(ctx context.Context, id int64) error {
 
 func (s *redeemRepoStub) Use(ctx context.Context, id, userID int64) error {
 	panic("unexpected Use call")
+}
+
+func (s *redeemRepoStub) HasClaimByUser(ctx context.Context, redeemCodeID, userID int64) (bool, error) {
+	panic("unexpected HasClaimByUser call")
+}
+
+func (s *redeemRepoStub) CreateClaim(ctx context.Context, redeemCodeID, userID int64, amount float64) error {
+	panic("unexpected CreateClaim call")
+}
+
+func (s *redeemRepoStub) IncrementClaimedCount(ctx context.Context, id, maxClaims int64) (int, error) {
+	panic("unexpected IncrementClaimedCount call")
 }
 
 func (s *redeemRepoStub) List(ctx context.Context, params pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {
@@ -502,13 +521,17 @@ func TestAdminService_DeleteRedeemCode_Success(t *testing.T) {
 	require.Equal(t, []int64{10}, repo.deletedIDs)
 }
 
-func TestAdminService_DeleteRedeemCode_Idempotent(t *testing.T) {
-	repo := &redeemRepoStub{}
+func TestAdminService_DeleteRedeemCode_ClaimedRejected(t *testing.T) {
+	repo := &redeemRepoStub{
+		codeByID: map[int64]*RedeemCode{
+			999: {ID: 999, Status: StatusUnused, ClaimedCount: 1},
+		},
+	}
 	svc := &adminServiceImpl{redeemCodeRepo: repo}
 
 	err := svc.DeleteRedeemCode(context.Background(), 999)
-	require.NoError(t, err)
-	require.Equal(t, []int64{999}, repo.deletedIDs)
+	require.Error(t, err)
+	require.Empty(t, repo.deletedIDs)
 }
 
 func TestAdminService_DeleteRedeemCode_Error(t *testing.T) {
@@ -533,6 +556,11 @@ func TestAdminService_BatchDeleteRedeemCodes_Success(t *testing.T) {
 
 func TestAdminService_BatchDeleteRedeemCodes_PartialFailures(t *testing.T) {
 	repo := &redeemRepoStub{
+		codeByID: map[int64]*RedeemCode{
+			1: {ID: 1, Status: StatusUnused},
+			2: {ID: 2, Status: StatusUnused},
+			3: {ID: 3, Status: StatusUnused},
+		},
 		deleteErrByID: map[int64]error{
 			2: errors.New("db error"),
 		},
@@ -543,4 +571,20 @@ func TestAdminService_BatchDeleteRedeemCodes_PartialFailures(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(2), deleted)
 	require.Equal(t, []int64{1, 2, 3}, repo.deletedIDs)
+}
+
+func TestAdminService_BatchDeleteRedeemCodes_SkipsClaimedWelfare(t *testing.T) {
+	repo := &redeemRepoStub{
+		codeByID: map[int64]*RedeemCode{
+			1: {ID: 1, Status: StatusUnused},
+			2: {ID: 2, Status: StatusUnused, ClaimedCount: 1},
+			3: {ID: 3, Status: StatusUsed},
+		},
+	}
+	svc := &adminServiceImpl{redeemCodeRepo: repo}
+
+	deleted, err := svc.BatchDeleteRedeemCodes(context.Background(), []int64{1, 2, 3})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), deleted)
+	require.Equal(t, []int64{1}, repo.deletedIDs)
 }
