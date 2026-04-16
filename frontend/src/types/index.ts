@@ -1117,6 +1117,7 @@ export interface RedeemCode {
 
 export interface GenerateRedeemCodesRequest {
   count: number
+  code?: string
   type: RedeemCodeType
   value: number
   group_id?: number | null // 订阅类型专用

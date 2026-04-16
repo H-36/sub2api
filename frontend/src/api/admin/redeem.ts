@@ -67,12 +67,18 @@ export async function generate(
   type: RedeemCodeType,
   value: number,
   groupId?: number | null,
-  validityDays?: number
+  validityDays?: number,
+  code?: string
 ): Promise<RedeemCode[]> {
   const payload: GenerateRedeemCodesRequest = {
     count,
     type,
     value
+  }
+
+  const trimmedCode = code?.trim()
+  if (trimmedCode) {
+    payload.code = trimmedCode
   }
 
   // 订阅类型专用字段

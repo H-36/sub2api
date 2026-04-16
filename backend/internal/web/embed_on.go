@@ -11,8 +11,8 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
-	"path"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -72,7 +72,7 @@ func NewFrontendServer(settingsProvider PublicSettingsProvider) (*FrontendServer
 		baseHTML:    baseHTML,
 		cache:       cache,
 		settings:    settingsProvider,
-		overrideDir: filepath.Join("data", "public"),
+		overrideDir: resolveOverrideDir(),
 	}, nil
 }
 
@@ -274,7 +274,7 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 		panic("failed to get dist subdirectory: " + err.Error())
 	}
 	fileServer := http.FileServer(http.FS(distFS))
-	overrideDir := filepath.Join("data", "public")
+	overrideDir := resolveOverrideDir()
 
 	return func(c *gin.Context) {
 		requestPath := c.Request.URL.Path
@@ -311,6 +311,13 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 
 		serveIndexHTML(c, distFS)
 	}
+}
+
+func resolveOverrideDir() string {
+	if dataDir := strings.TrimSpace(os.Getenv("DATA_DIR")); dataDir != "" {
+		return filepath.Join(dataDir, "public")
+	}
+	return filepath.Join("data", "public")
 }
 
 // tryServeOverrideFile is a standalone version of tryServeOverride for legacy usage.

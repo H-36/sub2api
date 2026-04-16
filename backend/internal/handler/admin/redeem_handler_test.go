@@ -13,6 +13,58 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGenerate_CustomCodePassesToService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	handler := &RedeemHandler{adminService: adminSvc}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body := map[string]any{
+		"count": 1,
+		"code":  "  CUSTOM-CODE-1  ",
+		"type":  "balance",
+		"value": 10.0,
+	}
+	jsonBytes, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/admin/redeem-codes/generate", bytes.NewReader(jsonBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler.Generate(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.NotNil(t, adminSvc.lastGenerateRedeemCodesInput)
+	assert.Equal(t, "CUSTOM-CODE-1", adminSvc.lastGenerateRedeemCodesInput.Code)
+	assert.Equal(t, 1, adminSvc.lastGenerateRedeemCodesInput.Count)
+}
+
+func TestGenerate_CustomCodeRequiresSingleCount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	handler := &RedeemHandler{adminService: adminSvc}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body := map[string]any{
+		"count": 2,
+		"code":  "CUSTOM-CODE-2",
+		"type":  "balance",
+		"value": 10.0,
+	}
+	jsonBytes, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/admin/redeem-codes/generate", bytes.NewReader(jsonBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler.Generate(c)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Nil(t, adminSvc.lastGenerateRedeemCodesInput)
+}
+
 // newCreateAndRedeemHandler creates a RedeemHandler with a non-nil (but minimal)
 // RedeemService so that CreateAndRedeem's nil guard passes and we can test the
 // parameter-validation layer that runs before any service call.

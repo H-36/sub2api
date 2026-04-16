@@ -34,6 +34,7 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetNillableUsedAt(code.UsedAt).
 		SetNillableGroupID(code.GroupID).
 		Save(ctx)
+	err = translatePersistenceError(err, nil, service.ErrRedeemCodeExists)
 	if err == nil {
 		code.ID = created.ID
 		code.CreatedAt = created.CreatedAt
@@ -62,7 +63,8 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 		builders = append(builders, b)
 	}
 
-	return r.client.RedeemCode.CreateBulk(builders...).Exec(ctx)
+	err := r.client.RedeemCode.CreateBulk(builders...).Exec(ctx)
+	return translatePersistenceError(err, nil, service.ErrRedeemCodeExists)
 }
 
 func (r *redeemCodeRepository) GetByID(ctx context.Context, id int64) (*service.RedeemCode, error) {
@@ -196,10 +198,8 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 	}
 
 	updated, err := up.Save(ctx)
+	err = translatePersistenceError(err, service.ErrRedeemCodeNotFound, service.ErrRedeemCodeExists)
 	if err != nil {
-		if dbent.IsNotFound(err) {
-			return service.ErrRedeemCodeNotFound
-		}
 		return err
 	}
 	code.CreatedAt = updated.CreatedAt

@@ -34,6 +34,7 @@ func NewRedeemHandler(adminService service.AdminService, redeemService *service.
 // GenerateRedeemCodesRequest represents generate redeem codes request
 type GenerateRedeemCodesRequest struct {
 	Count        int     `json:"count" binding:"required,min=1,max=100"`
+	Code         string  `json:"code" binding:"omitempty,min=3,max=32"` // 可选，自定义兑换码；为空则自动生成
 	Type         string  `json:"type" binding:"required,oneof=balance concurrency subscription invitation"`
 	Value        float64 `json:"value"`
 	GroupID      *int64  `json:"group_id"`      // 订阅类型必填
@@ -106,10 +107,20 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	req.Code = strings.TrimSpace(req.Code)
+	if req.Code != "" && len(req.Code) < 3 {
+		response.BadRequest(c, "code must be at least 3 characters long")
+		return
+	}
+	if req.Code != "" && req.Count != 1 {
+		response.BadRequest(c, "count must be 1 when custom code is provided")
+		return
+	}
 
 	executeAdminIdempotentJSON(c, "admin.redeem_codes.generate", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		codes, execErr := h.adminService.GenerateRedeemCodes(ctx, &service.GenerateRedeemCodesInput{
 			Count:        req.Count,
+			Code:         req.Code,
 			Type:         req.Type,
 			Value:        req.Value,
 			GroupID:      req.GroupID,

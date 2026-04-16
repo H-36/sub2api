@@ -305,6 +305,7 @@ type UpdateProxyInput struct {
 
 type GenerateRedeemCodesInput struct {
 	Count        int
+	Code         string
 	Type         string
 	Value        float64
 	GroupID      *int64 // 订阅类型专用：关联的分组ID
@@ -2050,6 +2051,11 @@ func (s *adminServiceImpl) GetRedeemCode(ctx context.Context, id int64) (*Redeem
 }
 
 func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error) {
+	input.Code = strings.TrimSpace(input.Code)
+	if input.Code != "" && len(input.Code) < 3 {
+		return nil, infraerrors.BadRequest("REDEEM_CODE_TOO_SHORT", "code must be at least 3 characters long")
+	}
+
 	// 如果是订阅类型，验证必须有 GroupID
 	if input.Type == RedeemTypeSubscription {
 		if input.GroupID == nil {
@@ -2063,6 +2069,30 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 		if !group.IsSubscriptionType() {
 			return nil, errors.New("group must be subscription type")
 		}
+	}
+
+	if input.Code != "" {
+		if input.Count != 1 {
+			return nil, infraerrors.BadRequest("REDEEM_CODE_CUSTOM_COUNT_INVALID", "count must be 1 when custom code is provided")
+		}
+
+		code := RedeemCode{
+			Code:   input.Code,
+			Type:   input.Type,
+			Value:  input.Value,
+			Status: StatusUnused,
+		}
+		if input.Type == RedeemTypeSubscription {
+			code.GroupID = input.GroupID
+			code.ValidityDays = input.ValidityDays
+			if code.ValidityDays <= 0 {
+				code.ValidityDays = 30
+			}
+		}
+		if err := s.redeemCodeRepo.Create(ctx, &code); err != nil {
+			return nil, err
+		}
+		return []RedeemCode{code}, nil
 	}
 
 	codes := make([]RedeemCode, 0, input.Count)
