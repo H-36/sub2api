@@ -6,6 +6,7 @@
 import { apiClient } from '../client'
 import type {
   RedeemCode,
+  RedeemCodeClaim,
   GenerateRedeemCodesRequest,
   RedeemCodeType,
   PaginatedResponse
@@ -50,6 +51,11 @@ export async function list(
  */
 export async function getById(id: number): Promise<RedeemCode> {
   const { data } = await apiClient.get<RedeemCode>(`/admin/redeem-codes/${id}`)
+  return data
+}
+
+export async function getClaims(id: number): Promise<RedeemCodeClaim[]> {
+  const { data } = await apiClient.get<RedeemCodeClaim[]>(`/admin/redeem-codes/${id}/claims`)
   return data
 }
 
@@ -174,6 +180,7 @@ export async function exportCodes(filters?: {
 export const redeemAPI = {
   list,
   getById,
+  getClaims,
   generate,
   delete: deleteCode,
   batchDelete,

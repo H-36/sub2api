@@ -298,6 +298,19 @@ func (r *redeemCodeRepository) IncrementClaimedCount(ctx context.Context, id, ma
 	return updated.ClaimedCount, nil
 }
 
+func (r *redeemCodeRepository) ListClaimsByRedeemCode(ctx context.Context, redeemCodeID int64) ([]service.RedeemCodeClaim, error) {
+	client := clientFromContext(ctx, r.client)
+	claims, err := client.RedeemCodeClaim.Query().
+		Where(redeemcodeclaim.RedeemCodeIDEQ(redeemCodeID)).
+		WithUser().
+		Order(dbent.Desc(redeemcodeclaim.FieldClaimedAt), dbent.Desc(redeemcodeclaim.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return redeemCodeClaimRecordsToService(claims), nil
+}
+
 func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, limit int) ([]service.RedeemCode, error) {
 	if limit <= 0 {
 		limit = 10
@@ -492,6 +505,29 @@ func redeemCodeClaimEntitiesToService(models []*dbent.RedeemCodeClaim) []service
 		parent.Status = service.StatusUsed
 		parent.Value = model.Amount
 		out = append(out, *parent)
+	}
+	return out
+}
+
+func redeemCodeClaimRecordsToService(models []*dbent.RedeemCodeClaim) []service.RedeemCodeClaim {
+	out := make([]service.RedeemCodeClaim, 0, len(models))
+	for i := range models {
+		model := models[i]
+		if model == nil {
+			continue
+		}
+
+		claim := service.RedeemCodeClaim{
+			ID:           model.ID,
+			RedeemCodeID: model.RedeemCodeID,
+			UserID:       model.UserID,
+			Amount:       model.Amount,
+			ClaimedAt:    model.ClaimedAt,
+		}
+		if model.Edges.User != nil {
+			claim.User = userEntityToService(model.Edges.User)
+		}
+		out = append(out, claim)
 	}
 	return out
 }

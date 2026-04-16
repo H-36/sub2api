@@ -362,6 +362,10 @@ func (s *redeemRepoStub) IncrementClaimedCount(ctx context.Context, id, maxClaim
 	panic("unexpected IncrementClaimedCount call")
 }
 
+func (s *redeemRepoStub) ListClaimsByRedeemCode(ctx context.Context, redeemCodeID int64) ([]RedeemCodeClaim, error) {
+	panic("unexpected ListClaimsByRedeemCode call")
+}
+
 func (s *redeemRepoStub) List(ctx context.Context, params pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected List call")
 }

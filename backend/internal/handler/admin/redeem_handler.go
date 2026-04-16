@@ -99,6 +99,28 @@ func (h *RedeemHandler) GetByID(c *gin.Context) {
 	response.Success(c, dto.RedeemCodeFromServiceAdmin(code))
 }
 
+// GetClaims handles getting claim records for a welfare redeem code
+// GET /api/v1/admin/redeem-codes/:id/claims
+func (h *RedeemHandler) GetClaims(c *gin.Context) {
+	codeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid redeem code ID")
+		return
+	}
+
+	claims, err := h.adminService.GetRedeemCodeClaims(c.Request.Context(), codeID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	out := make([]dto.RedeemCodeClaim, 0, len(claims))
+	for i := range claims {
+		out = append(out, *dto.RedeemCodeClaimFromService(&claims[i]))
+	}
+	response.Success(c, out)
+}
+
 // Generate handles generating new redeem codes
 // POST /api/v1/admin/redeem-codes/generate
 func (h *RedeemHandler) Generate(c *gin.Context) {

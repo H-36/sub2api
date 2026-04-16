@@ -149,7 +149,11 @@
 
           <template #cell-used_by="{ value, row }">
             <span class="text-sm text-gray-500 dark:text-dark-400">
-              {{ row.user?.email || (value ? t('admin.redeem.userPrefix', { id: value }) : '-') }}
+              {{
+                row.type === 'welfare'
+                  ? t('admin.redeem.claimedUsers', { count: row.claimed_count ?? 0 })
+                  : row.user?.email || (value ? t('admin.redeem.userPrefix', { id: value }) : '-')
+              }}
             </span>
           </template>
 
@@ -161,6 +165,14 @@
 
           <template #cell-actions="{ row }">
             <div class="flex items-center space-x-2">
+              <button
+                v-if="canViewClaims(row)"
+                @click="openClaimsDialog(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+              >
+                <Icon name="users" size="sm" :stroke-width="2" />
+                <span class="text-xs">{{ t('admin.redeem.viewClaims') }}</span>
+              </button>
               <button
                 v-if="canDeleteCode(row)"
                 @click="handleDelete(row)"
@@ -176,7 +188,11 @@
                 </svg>
                 <span class="text-xs">{{ t('common.delete') }}</span>
               </button>
-              <span v-else class="text-gray-400 dark:text-dark-500">-</span>
+              <span
+                v-if="!canViewClaims(row) && !canDeleteCode(row)"
+                class="text-gray-400 dark:text-dark-500"
+                >-</span
+              >
             </div>
           </template>
         </DataTable>
@@ -457,6 +473,75 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Claims Dialog -->
+    <Teleport to="body">
+      <div v-if="showClaimsDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-black/50" @click="closeClaimsDialog"></div>
+        <div class="relative z-10 w-full max-w-2xl rounded-xl bg-white shadow-xl dark:bg-dark-800">
+          <div
+            class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-dark-600"
+          >
+            <div>
+              <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                {{ t('admin.redeem.claimsTitle') }}
+              </h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ selectedClaimsCode?.code || '-' }}
+              </p>
+            </div>
+            <button
+              @click="closeClaimsDialog"
+              class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700 dark:hover:text-gray-300"
+            >
+              <Icon name="x" size="md" :stroke-width="2" />
+            </button>
+          </div>
+
+          <div class="p-5">
+            <div v-if="loadingClaims" class="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.redeem.loadingClaims') }}
+            </div>
+            <div
+              v-else-if="claimsError"
+              class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300"
+            >
+              {{ claimsError }}
+            </div>
+            <div v-else-if="claims.length === 0" class="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.redeem.noClaims') }}
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-600">
+                <thead>
+                  <tr class="text-left text-gray-500 dark:text-gray-400">
+                    <th class="px-3 py-2 font-medium">{{ t('admin.redeem.claimUser') }}</th>
+                    <th class="px-3 py-2 font-medium">{{ t('admin.redeem.claimAmount') }}</th>
+                    <th class="px-3 py-2 font-medium">{{ t('admin.redeem.claimTime') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
+                  <tr v-for="claim in claims" :key="claim.id">
+                    <td class="px-3 py-3 text-gray-900 dark:text-white">
+                      <div class="font-medium">{{ claim.user?.email || t('admin.redeem.userPrefix', { id: claim.user_id }) }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                        ID: {{ claim.user_id }}
+                      </div>
+                    </td>
+                    <td class="px-3 py-3 text-gray-900 dark:text-white">
+                      ${{ claim.amount.toFixed(2) }}
+                    </td>
+                    <td class="px-3 py-3 text-gray-500 dark:text-gray-400">
+                      {{ formatDateTime(claim.claimed_at) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </AppLayout>
 </template>
 
@@ -468,7 +553,14 @@ import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
-import type { RedeemCode, RedeemCodeType, Group, GroupPlatform, SubscriptionType } from '@/types'
+import type {
+  RedeemCode,
+  RedeemCodeClaim,
+  RedeemCodeType,
+  Group,
+  GroupPlatform,
+  SubscriptionType
+} from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -495,8 +587,13 @@ interface GroupOption {
 
 const showGenerateDialog = ref(false)
 const showResultDialog = ref(false)
+const showClaimsDialog = ref(false)
 const generatedCodes = ref<RedeemCode[]>([])
 const subscriptionGroups = ref<Group[]>([])
+const selectedClaimsCode = ref<RedeemCode | null>(null)
+const claims = ref<RedeemCodeClaim[]>([])
+const loadingClaims = ref(false)
+const claimsError = ref('')
 
 // 订阅类型分组选项
 const subscriptionGroupOptions = computed(() => {
@@ -816,6 +913,7 @@ const handleDelete = (code: RedeemCode) => {
 }
 
 const isWelfareCode = (code: RedeemCode) => code.type === 'welfare'
+const canViewClaims = (code: RedeemCode) => isWelfareCode(code) && (code.claimed_count ?? 0) > 0
 
 const canDeleteCode = (code: RedeemCode) => {
   if (code.status !== 'unused') {
@@ -825,6 +923,28 @@ const canDeleteCode = (code: RedeemCode) => {
     return (code.claimed_count ?? 0) === 0
   }
   return true
+}
+
+const closeClaimsDialog = () => {
+  showClaimsDialog.value = false
+  selectedClaimsCode.value = null
+  claims.value = []
+  claimsError.value = ''
+}
+
+const openClaimsDialog = async (code: RedeemCode) => {
+  showClaimsDialog.value = true
+  selectedClaimsCode.value = code
+  claims.value = []
+  claimsError.value = ''
+  loadingClaims.value = true
+  try {
+    claims.value = await adminAPI.redeem.getClaims(code.id)
+  } catch (error: any) {
+    claimsError.value = error.response?.data?.detail || t('admin.redeem.failedToLoadClaims')
+  } finally {
+    loadingClaims.value = false
+  }
 }
 
 const confirmDelete = async () => {

@@ -59,6 +59,10 @@ func (s *redeemRepoStubForGenerate) IncrementClaimedCount(context.Context, int64
 	panic("unexpected IncrementClaimedCount call")
 }
 
+func (s *redeemRepoStubForGenerate) ListClaimsByRedeemCode(context.Context, int64) ([]RedeemCodeClaim, error) {
+	panic("unexpected ListClaimsByRedeemCode call")
+}
+
 func (s *redeemRepoStubForGenerate) List(context.Context, pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected List call")
 }

@@ -354,6 +354,16 @@ type AdminRedeemCode struct {
 	Notes string `json:"notes"`
 }
 
+type RedeemCodeClaim struct {
+	ID           int64     `json:"id"`
+	RedeemCodeID int64     `json:"redeem_code_id"`
+	UserID       int64     `json:"user_id"`
+	Amount       float64   `json:"amount"`
+	ClaimedAt    time.Time `json:"claimed_at"`
+
+	User *User `json:"user,omitempty"`
+}
+
 // UsageLog 是普通用户接口使用的 usage log DTO（不包含管理员字段）。
 type UsageLog struct {
 	ID        int64  `json:"id"`

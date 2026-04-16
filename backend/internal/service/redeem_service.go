@@ -50,6 +50,7 @@ type RedeemCodeRepository interface {
 	HasClaimByUser(ctx context.Context, redeemCodeID, userID int64) (bool, error)
 	CreateClaim(ctx context.Context, redeemCodeID, userID int64, amount float64) error
 	IncrementClaimedCount(ctx context.Context, id, maxClaims int64) (int, error)
+	ListClaimsByRedeemCode(ctx context.Context, redeemCodeID int64) ([]RedeemCodeClaim, error)
 
 	List(ctx context.Context, params pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error)
 	ListWithFilters(ctx context.Context, params pagination.PaginationParams, codeType, status, search string) ([]RedeemCode, *pagination.PaginationResult, error)

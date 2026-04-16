@@ -1177,6 +1177,15 @@ export interface RedeemCode {
   group?: Group // 关联的分组
 }
 
+export interface RedeemCodeClaim {
+  id: number
+  redeem_code_id: number
+  user_id: number
+  amount: number
+  claimed_at: string
+  user?: User
+}
+
 export interface GenerateRedeemCodesRequest {
   count: number
   code?: string
