@@ -17,6 +17,8 @@ type RedeemCode struct {
 	Notes     string
 	CreatedAt time.Time
 
+	MaxClaims    int
+	ClaimedCount int
 	GroupID      *int64
 	ValidityDays int
 
@@ -30,6 +32,21 @@ func (r *RedeemCode) IsUsed() bool {
 
 func (r *RedeemCode) CanUse() bool {
 	return r.Status == StatusUnused
+}
+
+func (r *RedeemCode) IsWelfare() bool {
+	return r != nil && r.Type == RedeemTypeWelfare
+}
+
+func (r *RedeemCode) RemainingClaims() int {
+	if r == nil || r.MaxClaims <= 0 {
+		return 0
+	}
+	remaining := r.MaxClaims - r.ClaimedCount
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }
 
 func GenerateRedeemCode() (string, error) {

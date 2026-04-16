@@ -2615,6 +2615,37 @@ func (s *adminServiceImpl) GetRedeemCode(ctx context.Context, id int64) (*Redeem
 
 func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error) {
 	input.Code = strings.TrimSpace(input.Code)
+	if input.Type == RedeemTypeWelfare {
+		if input.Code == "" {
+			return nil, infraerrors.BadRequest("REDEEM_CODE_WELFARE_CODE_REQUIRED", "custom code is required for welfare redeem code")
+		}
+		if len(input.Code) < 3 {
+			return nil, infraerrors.BadRequest("REDEEM_CODE_TOO_SHORT", "code must be at least 3 characters long")
+		}
+		if input.Count > 10000 {
+			return nil, infraerrors.BadRequest("REDEEM_CODE_WELFARE_COUNT_TOO_LARGE", "welfare claim count cannot exceed 10000")
+		}
+		if input.Value <= 0 {
+			return nil, infraerrors.BadRequest("REDEEM_CODE_WELFARE_VALUE_INVALID", "welfare redeem value must be greater than zero")
+		}
+
+		code := RedeemCode{
+			Code:         input.Code,
+			Type:         input.Type,
+			Value:        input.Value,
+			Status:       StatusUnused,
+			MaxClaims:    input.Count,
+			ClaimedCount: 0,
+		}
+		if err := s.redeemCodeRepo.Create(ctx, &code); err != nil {
+			return nil, err
+		}
+		return []RedeemCode{code}, nil
+	}
+
+	if input.Count > 100 {
+		return nil, infraerrors.BadRequest("REDEEM_CODE_COUNT_TOO_LARGE", "count cannot exceed 100")
+	}
 	if input.Code != "" && len(input.Code) < 3 {
 		return nil, infraerrors.BadRequest("REDEEM_CODE_TOO_SHORT", "code must be at least 3 characters long")
 	}
@@ -2687,12 +2718,26 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 }
 
 func (s *adminServiceImpl) DeleteRedeemCode(ctx context.Context, id int64) error {
+	code, err := s.redeemCodeRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if code.IsUsed() || code.ClaimedCount > 0 {
+		return infraerrors.Conflict("REDEEM_CODE_DELETE_USED", "cannot delete redeem code that has already been claimed")
+	}
 	return s.redeemCodeRepo.Delete(ctx, id)
 }
 
 func (s *adminServiceImpl) BatchDeleteRedeemCodes(ctx context.Context, ids []int64) (int64, error) {
 	var deleted int64
 	for _, id := range ids {
+		code, err := s.redeemCodeRepo.GetByID(ctx, id)
+		if err != nil {
+			continue
+		}
+		if code.IsUsed() || code.ClaimedCount > 0 {
+			continue
+		}
 		if err := s.redeemCodeRepo.Delete(ctx, id); err == nil {
 			deleted++
 		}

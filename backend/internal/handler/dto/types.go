@@ -333,6 +333,8 @@ type RedeemCode struct {
 	UsedAt    *time.Time `json:"used_at"`
 	CreatedAt time.Time  `json:"created_at"`
 
+	MaxClaims    int    `json:"max_claims"`
+	ClaimedCount int    `json:"claimed_count"`
 	GroupID      *int64 `json:"group_id"`
 	ValidityDays int    `json:"validity_days"`
 

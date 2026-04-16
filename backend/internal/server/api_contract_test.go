@@ -1694,6 +1694,18 @@ func (stubRedeemCodeRepo) Use(ctx context.Context, id, userID int64) error {
 	return errors.New("not implemented")
 }
 
+func (stubRedeemCodeRepo) HasClaimByUser(ctx context.Context, redeemCodeID, userID int64) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (stubRedeemCodeRepo) CreateClaim(ctx context.Context, redeemCodeID, userID int64, amount float64) error {
+	return errors.New("not implemented")
+}
+
+func (stubRedeemCodeRepo) IncrementClaimedCount(ctx context.Context, id, maxClaims int64) (int, error) {
+	return 0, errors.New("not implemented")
+}
+
 func (stubRedeemCodeRepo) List(ctx context.Context, params pagination.PaginationParams) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }

@@ -90,6 +90,16 @@ func Notes(v string) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldEQ(FieldNotes, v))
 }
 
+// MaxClaims applies equality check predicate on the "max_claims" field. It's identical to MaxClaimsEQ.
+func MaxClaims(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldMaxClaims, v))
+}
+
+// ClaimedCount applies equality check predicate on the "claimed_count" field. It's identical to ClaimedCountEQ.
+func ClaimedCount(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldClaimedCount, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldEQ(FieldCreatedAt, v))
@@ -495,6 +505,86 @@ func NotesContainsFold(v string) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldContainsFold(FieldNotes, v))
 }
 
+// MaxClaimsEQ applies the EQ predicate on the "max_claims" field.
+func MaxClaimsEQ(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldMaxClaims, v))
+}
+
+// MaxClaimsNEQ applies the NEQ predicate on the "max_claims" field.
+func MaxClaimsNEQ(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldMaxClaims, v))
+}
+
+// MaxClaimsIn applies the In predicate on the "max_claims" field.
+func MaxClaimsIn(vs ...int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldMaxClaims, vs...))
+}
+
+// MaxClaimsNotIn applies the NotIn predicate on the "max_claims" field.
+func MaxClaimsNotIn(vs ...int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldMaxClaims, vs...))
+}
+
+// MaxClaimsGT applies the GT predicate on the "max_claims" field.
+func MaxClaimsGT(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldMaxClaims, v))
+}
+
+// MaxClaimsGTE applies the GTE predicate on the "max_claims" field.
+func MaxClaimsGTE(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldMaxClaims, v))
+}
+
+// MaxClaimsLT applies the LT predicate on the "max_claims" field.
+func MaxClaimsLT(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldMaxClaims, v))
+}
+
+// MaxClaimsLTE applies the LTE predicate on the "max_claims" field.
+func MaxClaimsLTE(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldMaxClaims, v))
+}
+
+// ClaimedCountEQ applies the EQ predicate on the "claimed_count" field.
+func ClaimedCountEQ(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldClaimedCount, v))
+}
+
+// ClaimedCountNEQ applies the NEQ predicate on the "claimed_count" field.
+func ClaimedCountNEQ(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldClaimedCount, v))
+}
+
+// ClaimedCountIn applies the In predicate on the "claimed_count" field.
+func ClaimedCountIn(vs ...int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldClaimedCount, vs...))
+}
+
+// ClaimedCountNotIn applies the NotIn predicate on the "claimed_count" field.
+func ClaimedCountNotIn(vs ...int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldClaimedCount, vs...))
+}
+
+// ClaimedCountGT applies the GT predicate on the "claimed_count" field.
+func ClaimedCountGT(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldClaimedCount, v))
+}
+
+// ClaimedCountGTE applies the GTE predicate on the "claimed_count" field.
+func ClaimedCountGTE(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldClaimedCount, v))
+}
+
+// ClaimedCountLT applies the LT predicate on the "claimed_count" field.
+func ClaimedCountLT(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldClaimedCount, v))
+}
+
+// ClaimedCountLTE applies the LTE predicate on the "claimed_count" field.
+func ClaimedCountLTE(v int) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldClaimedCount, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldEQ(FieldCreatedAt, v))
@@ -643,6 +733,29 @@ func HasGroup() predicate.RedeemCode {
 func HasGroupWith(preds ...predicate.Group) predicate.RedeemCode {
 	return predicate.RedeemCode(func(s *sql.Selector) {
 		step := newGroupStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasClaims applies the HasEdge predicate on the "claims" edge.
+func HasClaims() predicate.RedeemCode {
+	return predicate.RedeemCode(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ClaimsTable, ClaimsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasClaimsWith applies the HasEdge predicate on the "claims" edge with a given conditions (other predicates).
+func HasClaimsWith(preds ...predicate.RedeemCodeClaim) predicate.RedeemCode {
+	return predicate.RedeemCode(func(s *sql.Selector) {
+		step := newClaimsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

@@ -18,6 +18,7 @@ var (
 	ErrRedeemCodeNotFound  = infraerrors.NotFound("REDEEM_CODE_NOT_FOUND", "redeem code not found")
 	ErrRedeemCodeUsed      = infraerrors.Conflict("REDEEM_CODE_USED", "redeem code already used")
 	ErrRedeemCodeExists    = infraerrors.Conflict("REDEEM_CODE_EXISTS", "redeem code already exists")
+	ErrRedeemCodeClaimed   = infraerrors.Conflict("REDEEM_CODE_ALREADY_CLAIMED", "redeem code already claimed by this user")
 	ErrInsufficientBalance = infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance")
 	ErrRedeemRateLimited   = infraerrors.TooManyRequests("REDEEM_RATE_LIMITED", "too many failed attempts, please try again later")
 	ErrRedeemCodeLocked    = infraerrors.Conflict("REDEEM_CODE_LOCKED", "redeem code is being processed, please try again")
@@ -46,6 +47,9 @@ type RedeemCodeRepository interface {
 	Update(ctx context.Context, code *RedeemCode) error
 	Delete(ctx context.Context, id int64) error
 	Use(ctx context.Context, id, userID int64) error
+	HasClaimByUser(ctx context.Context, redeemCodeID, userID int64) (bool, error)
+	CreateClaim(ctx context.Context, redeemCodeID, userID int64, amount float64) error
+	IncrementClaimedCount(ctx context.Context, id, maxClaims int64) (int, error)
 
 	List(ctx context.Context, params pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error)
 	ListWithFilters(ctx context.Context, params pagination.PaginationParams, codeType, status, search string) ([]RedeemCode, *pagination.PaginationResult, error)
@@ -192,6 +196,9 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 	if code.Type != RedeemTypeInvitation && code.Value == 0 {
 		return errors.New("value must not be zero")
 	}
+	if code.MaxClaims <= 0 {
+		code.MaxClaims = 1
+	}
 	if code.Status == "" {
 		code.Status = StatusUnused
 	}
@@ -304,6 +311,10 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	// 将事务放入 context，使 repository 方法能够使用同一事务
 	txCtx := dbent.NewTxContext(ctx, tx)
 
+	if redeemCode.IsWelfare() {
+		return s.redeemWelfare(txCtx, tx, user, redeemCode)
+	}
+
 	// 【关键】先标记兑换码为已使用，确保并发安全
 	// 利用数据库乐观锁（WHERE status = 'unused'）保证原子性
 	if err := s.redeemRepo.Use(txCtx, redeemCode.ID, userID); err != nil {
@@ -379,10 +390,69 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	return redeemCode, nil
 }
 
+func (s *RedeemService) redeemWelfare(txCtx context.Context, tx *dbent.Tx, user *User, redeemCode *RedeemCode) (*RedeemCode, error) {
+	if redeemCode.Value <= 0 {
+		return nil, infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid welfare redeem code: value must be positive")
+	}
+	if redeemCode.MaxClaims <= 0 {
+		return nil, infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid welfare redeem code: max_claims must be positive")
+	}
+
+	alreadyClaimed, err := s.redeemRepo.HasClaimByUser(txCtx, redeemCode.ID, user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("check welfare claim: %w", err)
+	}
+	if alreadyClaimed {
+		return nil, ErrRedeemCodeClaimed
+	}
+
+	claimedCount, err := s.redeemRepo.IncrementClaimedCount(txCtx, redeemCode.ID, int64(redeemCode.MaxClaims))
+	if err != nil {
+		if errors.Is(err, ErrRedeemCodeUsed) {
+			return nil, ErrRedeemCodeUsed
+		}
+		return nil, fmt.Errorf("increment welfare claim count: %w", err)
+	}
+
+	if err := s.redeemRepo.CreateClaim(txCtx, redeemCode.ID, user.ID, redeemCode.Value); err != nil {
+		if errors.Is(err, ErrRedeemCodeClaimed) {
+			return nil, ErrRedeemCodeClaimed
+		}
+		return nil, fmt.Errorf("create welfare claim: %w", err)
+	}
+
+	if err := s.userRepo.UpdateBalance(txCtx, user.ID, redeemCode.Value); err != nil {
+		return nil, fmt.Errorf("update user balance: %w", err)
+	}
+
+	redeemCode.ClaimedCount = claimedCount
+	if redeemCode.ClaimedCount >= redeemCode.MaxClaims {
+		redeemCode.Status = StatusUsed
+		if err := s.redeemRepo.Update(txCtx, redeemCode); err != nil {
+			return nil, fmt.Errorf("mark welfare code exhausted: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+
+	s.invalidateRedeemCaches(txCtx, user.ID, redeemCode)
+
+	updated, err := s.redeemRepo.GetByID(context.Background(), redeemCode.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get updated welfare code: %w", err)
+	}
+	updated.UsedBy = &user.ID
+	now := time.Now()
+	updated.UsedAt = &now
+	return updated, nil
+}
+
 // invalidateRedeemCaches 失效兑换相关的缓存
 func (s *RedeemService) invalidateRedeemCaches(ctx context.Context, userID int64, redeemCode *RedeemCode) {
 	switch redeemCode.Type {
-	case RedeemTypeBalance:
+	case RedeemTypeBalance, RedeemTypeWelfare:
 		if s.authCacheInvalidator != nil {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
 		}
@@ -454,8 +524,8 @@ func (s *RedeemService) Delete(ctx context.Context, id int64) error {
 		return fmt.Errorf("get redeem code: %w", err)
 	}
 
-	// 不允许删除已使用的兑换码
-	if code.IsUsed() {
+	// 不允许删除已使用或已被领取过的兑换码
+	if code.IsUsed() || code.ClaimedCount > 0 {
 		return infraerrors.Conflict("REDEEM_CODE_DELETE_USED", "cannot delete used redeem code")
 	}
 

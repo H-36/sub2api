@@ -47,6 +47,18 @@ func (s *redeemRepoStubForGenerate) Use(context.Context, int64, int64) error {
 	panic("unexpected Use call")
 }
 
+func (s *redeemRepoStubForGenerate) HasClaimByUser(context.Context, int64, int64) (bool, error) {
+	panic("unexpected HasClaimByUser call")
+}
+
+func (s *redeemRepoStubForGenerate) CreateClaim(context.Context, int64, int64, float64) error {
+	panic("unexpected CreateClaim call")
+}
+
+func (s *redeemRepoStubForGenerate) IncrementClaimedCount(context.Context, int64, int64) (int, error) {
+	panic("unexpected IncrementClaimedCount call")
+}
+
 func (s *redeemRepoStubForGenerate) List(context.Context, pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected List call")
 }
@@ -104,4 +116,26 @@ func TestAdminService_GenerateRedeemCodes_RejectsCustomCodeWithMultiCount(t *tes
 	require.Error(t, err)
 	require.ErrorContains(t, err, "count must be 1")
 	require.Nil(t, redeemRepo.created)
+}
+
+func TestAdminService_GenerateRedeemCodes_CreatesWelfareCode(t *testing.T) {
+	redeemRepo := &redeemRepoStubForGenerate{}
+	svc := &adminServiceImpl{
+		redeemCodeRepo: redeemRepo,
+		groupRepo:      &groupRepoStubForAdmin{},
+	}
+
+	codes, err := svc.GenerateRedeemCodes(context.Background(), &GenerateRedeemCodesInput{
+		Count: 20,
+		Code:  "233",
+		Type:  RedeemTypeWelfare,
+		Value: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, codes, 1)
+	require.NotNil(t, redeemRepo.created)
+	require.Equal(t, RedeemTypeWelfare, redeemRepo.created.Type)
+	require.Equal(t, 20, redeemRepo.created.MaxClaims)
+	require.Equal(t, 0, redeemRepo.created.ClaimedCount)
+	require.Equal(t, "233", redeemRepo.created.Code)
 }
