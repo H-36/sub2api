@@ -1,66 +1,53 @@
 export const sidebar = {
   '/': [
     {
-      text: '开始使用',
-      icon: 'material-symbols:rocket-launch-rounded',
-      link: '/',
+      text: '使用文档',
+      icon: 'material-symbols:docs-rounded',
       expanded: true,
       collapsible: false,
       children: [
         {
-          text: '概览',
-          icon: 'material-symbols:docs-rounded',
-          link: '/'
+          text: '快速开始',
+          icon: 'material-symbols:bolt-rounded',
+          link: '/guide/quick-start.html'
         },
         {
-          text: '计费与价格',
-          icon: 'material-symbols:calculate-rounded',
-          link: '/reference/pricing.html'
-        },
-        {
-          text: '获取 API Key',
+          text: 'API Keys 说明',
           icon: 'mdi:key-variant',
           link: '/guide/token.html'
         },
         {
-          text: '第一个请求',
-          icon: 'material-symbols:terminal-rounded',
-          link: '/guide/first-request.html'
-        }
-      ]
-    },
-    {
-      text: '接入与价格',
-      icon: 'material-symbols:api-rounded',
-      expanded: true,
-      collapsible: false,
-      children: [
-        {
-          text: '接口与 Base URL',
+          text: 'API 地址',
           icon: 'material-symbols:route-rounded',
           link: '/reference/endpoints.html'
         },
         {
-          text: '分组说明',
-          icon: 'material-symbols:group-work-rounded',
-          link: '/reference/groups.html'
-        },
-        {
-          text: '模型与自检',
-          icon: 'material-symbols:view-list-rounded',
-          link: '/reference/models.html'
+          text: '计费与价格说明',
+          icon: 'material-symbols:calculate-rounded',
+          link: '/reference/pricing.html'
         }
       ]
     },
     {
-      text: '排障与查询',
-      icon: 'material-symbols:help-center-rounded',
+      text: '快速接入',
+      icon: 'material-symbols:terminal-rounded',
+      expanded: true,
       collapsible: false,
       children: [
         {
-          text: '常见问题',
-          icon: 'material-symbols:quiz-rounded',
-          link: '/reference/faq.html'
+          text: 'Claude Code 接入指南',
+          icon: 'material-symbols:smart-toy-rounded',
+          link: '/integration/claude-code.html'
+        },
+        {
+          text: 'Codex 接入指南',
+          icon: 'material-symbols:code-rounded',
+          link: '/integration/codex.html'
+        },
+        {
+          text: 'OpenCode 接入指南',
+          icon: 'material-symbols:deployed-code-rounded',
+          link: '/integration/opencode.html'
         }
       ]
     }
