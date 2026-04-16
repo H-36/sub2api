@@ -360,6 +360,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { initThemeMode, toggleThemeMode } from '@/utils/theme'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
@@ -375,9 +376,7 @@ const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
 function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  isDark.value = toggleThemeMode(isDark.value)
 }
 
 const currentYear = computed(() => new Date().getFullYear())
@@ -796,11 +795,7 @@ async function queryKey() {
 // ==================== Lifecycle ====================
 
 function initTheme() {
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    isDark.value = true
-    document.documentElement.classList.add('dark')
-  }
+  isDark.value = initThemeMode()
 }
 
 function formatResetTime(resetAt: string | null | undefined): string {
