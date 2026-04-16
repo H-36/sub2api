@@ -59,7 +59,7 @@ type stubAdminService struct {
 		calls     int
 	}
 	lastGenerateRedeemCodesInput *service.GenerateRedeemCodesInput
-	redeemClaims                map[int64][]service.RedeemCodeClaim
+	redeemClaims                 map[int64][]service.RedeemCodeClaim
 	mu                           sync.Mutex
 }
 
@@ -118,13 +118,13 @@ func newStubAdminService() *stubAdminService {
 		CreatedAt: now,
 	}
 	return &stubAdminService{
-		users:       []service.User{user},
-		apiKeys:     []service.APIKey{apiKey},
-		groups:      []service.Group{group},
-		accounts:    []service.Account{account},
-		proxies:     []service.Proxy{proxy},
-		proxyCounts: []service.ProxyWithAccountCount{{Proxy: proxy, AccountCount: 1}},
-		redeems:     []service.RedeemCode{redeem},
+		users:        []service.User{user},
+		apiKeys:      []service.APIKey{apiKey},
+		groups:       []service.Group{group},
+		accounts:     []service.Account{account},
+		proxies:      []service.Proxy{proxy},
+		proxyCounts:  []service.ProxyWithAccountCount{{Proxy: proxy, AccountCount: 1}},
+		redeems:      []service.RedeemCode{redeem},
 		redeemClaims: map[int64][]service.RedeemCodeClaim{},
 	}
 }

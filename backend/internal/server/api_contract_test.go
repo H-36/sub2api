@@ -303,6 +303,8 @@ func TestAPIContracts(t *testing.T) {
 						"type": "balance",
 						"value": 1.25,
 						"status": "used",
+						"max_claims": 0,
+						"claimed_count": 0,
 						"used_by": 1,
 						"used_at": "2025-01-02T03:04:05Z",
 						"created_at": "2025-01-02T03:04:05Z",
