@@ -7,6 +7,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -626,6 +628,20 @@ func TestNewFrontendServer(t *testing.T) {
 		assert.NotEmpty(t, server.baseHTML)
 		assert.Contains(t, string(server.baseHTML), "<!doctype html>")
 	})
+
+	t.Run("uses_data_dir_public_override_when_env_set", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		tempDir := t.TempDir()
+		t.Setenv("DATA_DIR", tempDir)
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		assert.Equal(t, filepath.Join(tempDir, "public"), server.overrideDir)
+	})
 }
 
 func TestHasEmbeddedFrontend(t *testing.T) {
@@ -751,6 +767,27 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+	})
+
+	t.Run("serves_override_files_from_data_dir", func(t *testing.T) {
+		tempDir := t.TempDir()
+		overrideDir := filepath.Join(tempDir, "public")
+		require.NoError(t, os.MkdirAll(overrideDir, 0o755))
+		overrideContent := []byte("override-logo")
+		require.NoError(t, os.WriteFile(filepath.Join(overrideDir, "logo.png"), overrideContent, 0o644))
+		t.Setenv("DATA_DIR", tempDir)
+
+		middleware := ServeEmbeddedFrontend()
+
+		router := gin.New()
+		router.Use(middleware)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/logo.png", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, overrideContent, w.Body.Bytes())
 	})
 }
 

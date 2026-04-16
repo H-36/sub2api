@@ -218,6 +218,26 @@
               <label class="input-label">{{ t('admin.redeem.codeType') }}</label>
               <Select v-model="generateForm.type" :options="typeOptions" />
             </div>
+            <div>
+              <label class="input-label">
+                {{ t('admin.redeem.customCode') }}
+                <span class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
+              </label>
+              <input
+                v-model.trim="generateForm.code"
+                type="text"
+                maxlength="32"
+                class="input font-mono"
+                :placeholder="t('admin.redeem.customCodePlaceholder')"
+              />
+              <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                {{
+                  hasCustomCode
+                    ? t('admin.redeem.countLockedByCustomCode')
+                    : t('admin.redeem.customCodeHint')
+                }}
+              </p>
+            </div>
             <!-- 余额/并发类型：显示数值输入 -->
             <div v-if="generateForm.type !== 'subscription' && generateForm.type !== 'invitation'">
               <label class="input-label">
@@ -295,7 +315,8 @@
                 min="1"
                 max="100"
                 required
-                class="input"
+                :disabled="hasCustomCode"
+                :class="['input', hasCustomCode ? 'cursor-not-allowed opacity-60' : '']"
               />
             </div>
             <div class="flex justify-end gap-3 pt-2">
@@ -558,12 +579,15 @@ const deletingCode = ref<RedeemCode | null>(null)
 const copiedCode = ref<string | null>(null)
 
 const generateForm = reactive({
+  code: '',
   type: 'balance' as RedeemCodeType,
   value: 10,
   count: 1,
   group_id: null as number | null,
   validity_days: 30
 })
+
+const hasCustomCode = computed(() => generateForm.code.trim().length > 0)
 
 // 监听类型变化，邀请码类型时自动设置 value 为 0
 watch(
@@ -576,6 +600,12 @@ watch(
     }
   }
 )
+
+watch(hasCustomCode, (enabled) => {
+  if (enabled) {
+    generateForm.count = 1
+  }
+})
 
 const buildRedeemQueryFilters = () => ({
   type: (filters.type || undefined) as RedeemCodeType | undefined,
@@ -666,12 +696,14 @@ const handleGenerateCodes = async () => {
       generateForm.type,
       generateForm.value,
       generateForm.type === 'subscription' ? generateForm.group_id : undefined,
-      generateForm.type === 'subscription' ? generateForm.validity_days : undefined
+      generateForm.type === 'subscription' ? generateForm.validity_days : undefined,
+      generateForm.code
     )
     showGenerateDialog.value = false
     generatedCodes.value = result
     showResultDialog.value = true
     // 重置表单
+    generateForm.code = ''
     generateForm.group_id = null
     generateForm.validity_days = 30
     loadCodes()
