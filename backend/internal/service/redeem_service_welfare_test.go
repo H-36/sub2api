@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
@@ -185,12 +186,36 @@ func (s *welfareUserRepoStub) Delete(context.Context, int64) error {
 	panic("unexpected Delete call")
 }
 
+func (s *welfareUserRepoStub) GetUserAvatar(context.Context, int64) (*service.UserAvatar, error) {
+	panic("unexpected GetUserAvatar call")
+}
+
+func (s *welfareUserRepoStub) UpsertUserAvatar(context.Context, int64, service.UpsertUserAvatarInput) (*service.UserAvatar, error) {
+	panic("unexpected UpsertUserAvatar call")
+}
+
+func (s *welfareUserRepoStub) DeleteUserAvatar(context.Context, int64) error {
+	panic("unexpected DeleteUserAvatar call")
+}
+
 func (s *welfareUserRepoStub) List(context.Context, pagination.PaginationParams) ([]service.User, *pagination.PaginationResult, error) {
 	panic("unexpected List call")
 }
 
 func (s *welfareUserRepoStub) ListWithFilters(context.Context, pagination.PaginationParams, service.UserListFilters) ([]service.User, *pagination.PaginationResult, error) {
 	panic("unexpected ListWithFilters call")
+}
+
+func (s *welfareUserRepoStub) GetLatestUsedAtByUserIDs(context.Context, []int64) (map[int64]*time.Time, error) {
+	panic("unexpected GetLatestUsedAtByUserIDs call")
+}
+
+func (s *welfareUserRepoStub) GetLatestUsedAtByUserID(context.Context, int64) (*time.Time, error) {
+	panic("unexpected GetLatestUsedAtByUserID call")
+}
+
+func (s *welfareUserRepoStub) UpdateUserLastActiveAt(context.Context, int64, time.Time) error {
+	panic("unexpected UpdateUserLastActiveAt call")
 }
 
 func (s *welfareUserRepoStub) UpdateBalance(_ context.Context, id int64, amount float64) error {
@@ -224,6 +249,14 @@ func (s *welfareUserRepoStub) AddGroupToAllowedGroups(context.Context, int64, in
 
 func (s *welfareUserRepoStub) RemoveGroupFromUserAllowedGroups(context.Context, int64, int64) error {
 	panic("unexpected RemoveGroupFromUserAllowedGroups call")
+}
+
+func (s *welfareUserRepoStub) ListUserAuthIdentities(context.Context, int64) ([]service.UserAuthIdentityRecord, error) {
+	panic("unexpected ListUserAuthIdentities call")
+}
+
+func (s *welfareUserRepoStub) UnbindUserAuthProvider(context.Context, int64, string) error {
+	panic("unexpected UnbindUserAuthProvider call")
 }
 
 func (s *welfareUserRepoStub) UpdateTotpSecret(context.Context, int64, *string) error {

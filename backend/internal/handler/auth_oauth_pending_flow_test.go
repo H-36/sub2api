@@ -2489,6 +2489,22 @@ func (r *oauthPendingFlowRedeemCodeRepo) Use(ctx context.Context, id, userID int
 	return nil
 }
 
+func (r *oauthPendingFlowRedeemCodeRepo) HasClaimByUser(context.Context, int64, int64) (bool, error) {
+	panic("unexpected HasClaimByUser call")
+}
+
+func (r *oauthPendingFlowRedeemCodeRepo) CreateClaim(context.Context, int64, int64, float64) error {
+	panic("unexpected CreateClaim call")
+}
+
+func (r *oauthPendingFlowRedeemCodeRepo) IncrementClaimedCount(context.Context, int64, int64) (int, error) {
+	panic("unexpected IncrementClaimedCount call")
+}
+
+func (r *oauthPendingFlowRedeemCodeRepo) ListClaimsByRedeemCode(context.Context, int64) ([]service.RedeemCodeClaim, error) {
+	panic("unexpected ListClaimsByRedeemCode call")
+}
+
 func (r *oauthPendingFlowRedeemCodeRepo) List(context.Context, pagination.PaginationParams) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected List call")
 }
