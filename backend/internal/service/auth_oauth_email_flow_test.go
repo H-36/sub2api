@@ -15,6 +15,7 @@ import (
 
 type redeemCodeRepoStub struct {
 	codesByCode map[string]*RedeemCode
+	claims      map[int64]map[int64]struct{}
 	useCalls    []struct {
 		id     int64
 		userID int64
@@ -80,6 +81,66 @@ func (s *redeemCodeRepoStub) Use(_ context.Context, id, userID int64) error {
 		return nil
 	}
 	return ErrRedeemCodeNotFound
+}
+
+func (s *redeemCodeRepoStub) HasClaimByUser(_ context.Context, redeemCodeID, userID int64) (bool, error) {
+	claims := s.claims[redeemCodeID]
+	_, ok := claims[userID]
+	return ok, nil
+}
+
+func (s *redeemCodeRepoStub) CreateClaim(_ context.Context, redeemCodeID, userID int64, amount float64) error {
+	if s.claims == nil {
+		s.claims = make(map[int64]map[int64]struct{})
+	}
+	if _, ok := s.claims[redeemCodeID]; !ok {
+		s.claims[redeemCodeID] = make(map[int64]struct{})
+	}
+	if _, ok := s.claims[redeemCodeID][userID]; ok {
+		return ErrRedeemCodeClaimed
+	}
+	s.claims[redeemCodeID][userID] = struct{}{}
+	return nil
+}
+
+func (s *redeemCodeRepoStub) IncrementClaimedCount(_ context.Context, id, maxClaims int64) (int, error) {
+	for _, redeemCode := range s.codesByCode {
+		if redeemCode.ID != id {
+			continue
+		}
+		if redeemCode.Status == StatusUsed || int64(redeemCode.ClaimedCount) >= maxClaims {
+			return 0, ErrRedeemCodeUsed
+		}
+		redeemCode.ClaimedCount++
+		return redeemCode.ClaimedCount, nil
+	}
+	return 0, ErrRedeemCodeNotFound
+}
+
+func (s *redeemCodeRepoStub) ListClaimsByRedeemCode(_ context.Context, redeemCodeID int64) ([]RedeemCodeClaim, error) {
+	claims := s.claims[redeemCodeID]
+	if len(claims) == 0 {
+		return nil, nil
+	}
+	amount := 0.0
+	for _, code := range s.codesByCode {
+		if code.ID == redeemCodeID {
+			amount = code.Value
+			break
+		}
+	}
+	result := make([]RedeemCodeClaim, 0, len(claims))
+	var claimID int64 = 1
+	for userID := range claims {
+		result = append(result, RedeemCodeClaim{
+			ID:           claimID,
+			RedeemCodeID: redeemCodeID,
+			UserID:       userID,
+			Amount:       amount,
+		})
+		claimID++
+	}
+	return result, nil
 }
 
 func (s *redeemCodeRepoStub) List(context.Context, pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {

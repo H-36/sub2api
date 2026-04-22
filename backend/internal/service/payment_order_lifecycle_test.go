@@ -28,6 +28,7 @@ type paymentOrderLifecycleQueryProvider struct {
 
 type paymentOrderLifecycleRedeemRepo struct {
 	codesByCode map[string]*RedeemCode
+	claims      map[int64]map[int64]struct{}
 	useCalls    []struct {
 		id     int64
 		userID int64
@@ -122,6 +123,66 @@ func (r *paymentOrderLifecycleRedeemRepo) Use(_ context.Context, id, userID int6
 		return nil
 	}
 	return ErrRedeemCodeNotFound
+}
+
+func (r *paymentOrderLifecycleRedeemRepo) HasClaimByUser(_ context.Context, redeemCodeID, userID int64) (bool, error) {
+	claims := r.claims[redeemCodeID]
+	_, ok := claims[userID]
+	return ok, nil
+}
+
+func (r *paymentOrderLifecycleRedeemRepo) CreateClaim(_ context.Context, redeemCodeID, userID int64, amount float64) error {
+	if r.claims == nil {
+		r.claims = make(map[int64]map[int64]struct{})
+	}
+	if _, ok := r.claims[redeemCodeID]; !ok {
+		r.claims[redeemCodeID] = make(map[int64]struct{})
+	}
+	if _, ok := r.claims[redeemCodeID][userID]; ok {
+		return ErrRedeemCodeClaimed
+	}
+	r.claims[redeemCodeID][userID] = struct{}{}
+	return nil
+}
+
+func (r *paymentOrderLifecycleRedeemRepo) IncrementClaimedCount(_ context.Context, id, maxClaims int64) (int, error) {
+	for _, redeemCode := range r.codesByCode {
+		if redeemCode.ID != id {
+			continue
+		}
+		if redeemCode.Status == StatusUsed || int64(redeemCode.ClaimedCount) >= maxClaims {
+			return 0, ErrRedeemCodeUsed
+		}
+		redeemCode.ClaimedCount++
+		return redeemCode.ClaimedCount, nil
+	}
+	return 0, ErrRedeemCodeNotFound
+}
+
+func (r *paymentOrderLifecycleRedeemRepo) ListClaimsByRedeemCode(_ context.Context, redeemCodeID int64) ([]RedeemCodeClaim, error) {
+	claims := r.claims[redeemCodeID]
+	if len(claims) == 0 {
+		return nil, nil
+	}
+	amount := 0.0
+	for _, code := range r.codesByCode {
+		if code.ID == redeemCodeID {
+			amount = code.Value
+			break
+		}
+	}
+	result := make([]RedeemCodeClaim, 0, len(claims))
+	var claimID int64 = 1
+	for userID := range claims {
+		result = append(result, RedeemCodeClaim{
+			ID:           claimID,
+			RedeemCodeID: redeemCodeID,
+			UserID:       userID,
+			Amount:       amount,
+		})
+		claimID++
+	}
+	return result, nil
 }
 
 func (r *paymentOrderLifecycleRedeemRepo) List(context.Context, pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {
