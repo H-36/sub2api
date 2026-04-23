@@ -28,7 +28,6 @@ var (
 		InputCostPerTokenPriority:       12.5e-06, // $12.5 per MTok
 		OutputCostPerToken:              3e-05,    // $30 per MTok
 		OutputCostPerTokenPriority:      7.5e-05,  // $75 per MTok
-		CacheCreationInputTokenCost:     5e-06,    // $5 per MTok
 		CacheReadInputTokenCost:         5e-07,    // $0.5 per MTok
 		CacheReadInputTokenCostPriority: 1.25e-06, // $1.25 per MTok
 		LongContextInputTokenThreshold:  272000,

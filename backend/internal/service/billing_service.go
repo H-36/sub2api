@@ -223,7 +223,6 @@ func (s *BillingService) initFallbackPricing() {
 		InputPricePerTokenPriority:     12.5e-6, // $12.5 per MTok
 		OutputPricePerToken:            30e-6,   // $30 per MTok
 		OutputPricePerTokenPriority:    75e-6,   // $75 per MTok
-		CacheCreationPricePerToken:     5e-6,    // $5 per MTok
 		CacheReadPricePerToken:         0.5e-6,  // $0.5 per MTok
 		CacheReadPricePerTokenPriority: 1.25e-6, // $1.25 per MTok
 		SupportsCacheBreakdown:         false,

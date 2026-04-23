@@ -601,7 +601,7 @@ func TestBillingServiceGetModelPricing_OpenAIFallbackGpt55UsesDedicatedPrices(t 
 	require.InDelta(t, 12.5e-6, gpt55.InputPricePerTokenPriority, 1e-12)
 	require.InDelta(t, 30e-6, gpt55.OutputPricePerToken, 1e-12)
 	require.InDelta(t, 75e-6, gpt55.OutputPricePerTokenPriority, 1e-12)
-	require.InDelta(t, 5e-6, gpt55.CacheCreationPricePerToken, 1e-12)
+	require.Zero(t, gpt55.CacheCreationPricePerToken)
 	require.InDelta(t, 0.5e-6, gpt55.CacheReadPricePerToken, 1e-12)
 	require.InDelta(t, 1.25e-6, gpt55.CacheReadPricePerTokenPriority, 1e-12)
 	require.Equal(t, 272000, gpt55.LongContextInputThreshold)
