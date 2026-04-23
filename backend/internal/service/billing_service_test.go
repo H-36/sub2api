@@ -591,6 +591,24 @@ func TestBillingServiceGetModelPricing_OpenAIFallbackGpt52Variants(t *testing.T)
 	require.InDelta(t, 28e-6, gpt52Codex.OutputPricePerTokenPriority, 1e-12)
 }
 
+func TestBillingServiceGetModelPricing_OpenAIFallbackGpt55UsesDedicatedPrices(t *testing.T) {
+	svc := newTestBillingService()
+
+	gpt55, err := svc.GetModelPricing("gpt-5.5")
+	require.NoError(t, err)
+	require.NotNil(t, gpt55)
+	require.InDelta(t, 5e-6, gpt55.InputPricePerToken, 1e-12)
+	require.InDelta(t, 12.5e-6, gpt55.InputPricePerTokenPriority, 1e-12)
+	require.InDelta(t, 30e-6, gpt55.OutputPricePerToken, 1e-12)
+	require.InDelta(t, 75e-6, gpt55.OutputPricePerTokenPriority, 1e-12)
+	require.InDelta(t, 5e-6, gpt55.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, 0.5e-6, gpt55.CacheReadPricePerToken, 1e-12)
+	require.InDelta(t, 1.25e-6, gpt55.CacheReadPricePerTokenPriority, 1e-12)
+	require.Equal(t, 272000, gpt55.LongContextInputThreshold)
+	require.InDelta(t, 2.0, gpt55.LongContextInputMultiplier, 1e-12)
+	require.InDelta(t, 1.5, gpt55.LongContextOutputMultiplier, 1e-12)
+}
+
 func TestCalculateCostWithServiceTier_PriorityFallsBackToTierMultiplierWhenExplicitPriceMissing(t *testing.T) {
 	svc := NewBillingService(&config.Config{}, &PricingService{
 		pricingData: map[string]*LiteLLMModelPricing{
