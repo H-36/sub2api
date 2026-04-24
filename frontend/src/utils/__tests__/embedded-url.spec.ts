@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildEmbeddedUrl, detectTheme, isStandaloneCheckoutUrl } from '../embedded-url'
+import {
+  buildCustomPageProxyUrl,
+  buildEmbeddedUrl,
+  detectTheme,
+  isStandaloneCheckoutUrl,
+} from '../embedded-url'
 
 describe('embedded-url', () => {
   const originalLocation = window.location
@@ -72,6 +77,13 @@ describe('embedded-url', () => {
     expect(isStandaloneCheckoutUrl('https://pay.ldxp.cn/shop/BSEJH4PV/4j9om0')).toBe(true)
     expect(isStandaloneCheckoutUrl('https://example.com/checkout/session')).toBe(true)
     expect(isStandaloneCheckoutUrl('https://example.com/docs')).toBe(false)
+  })
+
+  it('builds custom page proxy urls', () => {
+    expect(buildCustomPageProxyUrl('migrated_purchase_subscription')).toBe(
+      '/api/v1/custom-pages/migrated_purchase_subscription/proxy',
+    )
+    expect(buildCustomPageProxyUrl('pay/item 1')).toBe('/api/v1/custom-pages/pay%2Fitem%201/proxy')
   })
 
   it('detects dark mode from document root class', () => {

@@ -15,6 +15,9 @@ func RegisterUserRoutes(
 	jwtAuth middleware.JWTAuthMiddleware,
 	settingService *service.SettingService,
 ) {
+	// Public but tightly scoped: only proxies configured user-visible checkout custom pages.
+	v1.GET("/custom-pages/:id/proxy", handleCustomPageProxy(settingService))
+
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
 	authenticated.Use(middleware.BackendModeUserGuard(settingService))
