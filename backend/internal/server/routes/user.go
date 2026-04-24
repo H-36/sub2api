@@ -74,6 +74,8 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		authenticated.GET("/model-plaza", h.ModelPlaza.Get)
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{
