@@ -23,4 +23,5 @@ description: 文档
 
 - <a href="./integration/claude-code.html">Claude Code 接入指南</a> - 用 Anthropic 兼容方式接入
 - <a href="./integration/codex.html">Codex 接入指南</a> - 用 OpenAI Responses 兼容方式接入
+- <a href="./integration/image-generation.html">生图接口接入指南</a> - 使用 OpenAI 兼容图片生成和编辑接口
 - <a href="./integration/opencode.html">OpenCode 接入指南</a> - 按分组类型选择 provider 和 Base URL

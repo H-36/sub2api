@@ -45,6 +45,11 @@ export const sidebar = {
           link: '/integration/codex.html'
         },
         {
+          text: '生图接口接入指南',
+          icon: 'material-symbols:image-rounded',
+          link: '/integration/image-generation.html'
+        },
+        {
           text: 'OpenCode 接入指南',
           icon: 'material-symbols:deployed-code-rounded',
           link: '/integration/opencode.html'
