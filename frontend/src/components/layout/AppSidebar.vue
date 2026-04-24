@@ -185,6 +185,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import VersionBadge from '@/components/common/VersionBadge.vue'
+import { isStandaloneCheckoutUrl } from '@/utils/embedded-url'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { initThemeMode, toggleThemeMode } from '@/utils/theme'
@@ -652,6 +653,10 @@ const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 
+function routesToInternalPurchase(item: { url: string }): boolean {
+  return Boolean(appStore.cachedPublicSettings?.payment_enabled) && isStandaloneCheckoutUrl(item.url)
+}
+
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
 //
@@ -659,6 +664,7 @@ const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 // 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
 function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   const items: NavItem[] = []
+  const hasCustomPurchaseEntry = customMenuItemsForUser.value.some(routesToInternalPurchase)
   if (withDashboard) {
     items.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
   }
@@ -669,7 +675,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
-    ...(appStore.cachedPublicSettings?.payment_enabled
+    ...(appStore.cachedPublicSettings?.payment_enabled && !hasCustomPurchaseEntry
       ? [
           {
             path: '/purchase',
@@ -688,7 +694,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
-      path: `/custom/${item.id}`,
+      path: routesToInternalPurchase(item) ? '/purchase' : `/custom/${item.id}`,
       label: item.label,
       icon: null,
       iconSvg: item.icon_svg,

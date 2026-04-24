@@ -43,44 +43,6 @@
           </div>
         </div>
 
-        <div
-          v-else-if="opensAsTopLevel"
-          class="flex h-full items-center justify-center p-10 text-center"
-        >
-          <div class="max-w-md">
-            <div
-              class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
-            >
-              <Icon name="externalLink" size="lg" class="text-gray-400" />
-            </div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('customPage.openingExternalTitle') }}
-            </h3>
-            <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">
-              {{ t('customPage.openingExternalDesc') }}
-            </p>
-            <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                class="btn btn-primary btn-sm"
-                @click="openInCurrentWindow"
-              >
-                <Icon name="externalLink" size="sm" class="mr-1.5" :stroke-width="2" />
-                {{ t('customPage.openInCurrentWindow') }}
-              </button>
-              <a
-                :href="embeddedUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn btn-secondary btn-sm"
-              >
-                <Icon name="externalLink" size="sm" class="mr-1.5" :stroke-width="2" />
-                {{ t('customPage.openInNewTab') }}
-              </a>
-            </div>
-          </div>
-        </div>
-
         <div v-else class="custom-embed-shell">
           <a
             :href="embeddedUrl"
@@ -104,8 +66,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
@@ -116,6 +78,7 @@ import { buildEmbeddedUrl, detectTheme, isStandaloneCheckoutUrl } from '@/utils/
 
 const { t, locale } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
@@ -139,8 +102,10 @@ const menuItem = computed(() => {
   return null
 })
 
-const opensAsTopLevel = computed(() => {
-  return menuItem.value ? isStandaloneCheckoutUrl(menuItem.value.url) : false
+const redirectsToInternalPurchase = computed(() => {
+  const item = menuItem.value
+  if (!appStore.cachedPublicSettings?.payment_enabled || !item) return false
+  return isStandaloneCheckoutUrl(item.url)
 })
 
 const embeddedUrl = computed(() => {
@@ -151,7 +116,7 @@ const embeddedUrl = computed(() => {
     authStore.token,
     pageTheme.value,
     locale.value,
-    { appendContext: !opensAsTopLevel.value },
+    { appendContext: !redirectsToInternalPurchase.value },
   )
 })
 
@@ -160,10 +125,9 @@ const isValidUrl = computed(() => {
   return url.startsWith('http://') || url.startsWith('https://')
 })
 
-const openInCurrentWindow = () => {
-  if (typeof window === 'undefined') return
-  if (!isValidUrl.value) return
-  window.location.assign(embeddedUrl.value)
+const redirectToInternalPurchase = () => {
+  if (!redirectsToInternalPurchase.value) return
+  void router.replace('/purchase')
 }
 
 onMounted(async () => {
@@ -179,14 +143,24 @@ onMounted(async () => {
     })
   }
 
-  if (appStore.publicSettingsLoaded) return
+  if (appStore.publicSettingsLoaded) {
+    redirectToInternalPurchase()
+    return
+  }
   loading.value = true
   try {
     await appStore.fetchPublicSettings()
   } finally {
     loading.value = false
   }
+
+  redirectToInternalPurchase()
 })
+
+watch(
+  () => redirectsToInternalPurchase.value,
+  () => redirectToInternalPurchase(),
+)
 
 onUnmounted(() => {
   if (themeObserver) {
