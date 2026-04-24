@@ -1,12 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 import CustomPageView from '../CustomPageView.vue'
 
 const routeState = vi.hoisted(() => ({
   params: { id: 'migrated_purchase_subscription' },
 }))
-
-const routerReplace = vi.hoisted(() => vi.fn())
 
 const appStoreState = vi.hoisted(() => ({
   publicSettingsLoaded: true,
@@ -31,9 +29,6 @@ vi.mock('vue-router', async () => {
   return {
     ...actual,
     useRoute: () => routeState,
-    useRouter: () => ({
-      replace: routerReplace,
-    }),
   }
 })
 
@@ -67,15 +62,33 @@ vi.mock('@/stores/adminSettings', () => ({
 }))
 
 describe('CustomPageView', () => {
+  const originalLocation = window.location
+  const assign = vi.fn()
+
   beforeEach(() => {
-    routerReplace.mockReset()
     appStoreState.publicSettingsLoaded = true
     appStoreState.fetchPublicSettings.mockReset()
+    assign.mockReset()
+    Object.defineProperty(window, 'location', {
+      value: {
+        assign,
+      },
+      writable: true,
+      configurable: true,
+    })
   })
 
-  it('redirects standalone checkout custom pages to the internal purchase view', () => {
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('opens standalone checkout custom pages in the current window', () => {
     shallowMount(CustomPageView)
 
-    expect(routerReplace).toHaveBeenCalledWith('/purchase')
+    expect(assign).toHaveBeenCalledWith('https://pay.ldxp.cn/shop/BSEJH4PV/4j9om0')
   })
 })

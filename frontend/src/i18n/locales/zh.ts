@@ -5902,14 +5902,13 @@ export default {
   // Custom Page (iframe embed)
   customPage: {
     title: '自定义页面',
-    openInCurrentWindow: '当前窗口打开',
     openInNewTab: '新窗口打开',
+    openingExternalTitle: '正在打开页面',
+    openingExternalDesc: '该页面需要在当前窗口打开。',
     notFoundTitle: '页面不存在',
     notFoundDesc: '该自定义页面不存在或已被删除。',
     notConfiguredTitle: '页面链接未配置',
     notConfiguredDesc: '该自定义页面的 URL 未正确配置。',
-    openingExternalTitle: '页面需要单独打开',
-    openingExternalDesc: '该页面无法在站内嵌入，请在当前窗口继续打开。',
   },
 
   // Announcements Page
