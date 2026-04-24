@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildEmbeddedUrl, detectTheme } from '../embedded-url'
+import { buildEmbeddedUrl, detectTheme, isStandaloneCheckoutUrl } from '../embedded-url'
 
 describe('embedded-url', () => {
   const originalLocation = window.location
@@ -58,6 +58,20 @@ describe('embedded-url', () => {
 
   it('returns original string for invalid url input', () => {
     expect(buildEmbeddedUrl('not a url', 1, 'token')).toBe('not a url')
+  })
+
+  it('returns the original checkout url when context appending is disabled', () => {
+    const checkoutUrl = 'https://pay.ldxp.cn/shop/BSEJH4PV/4j9om0'
+
+    expect(buildEmbeddedUrl(checkoutUrl, 42, 'token-123', 'dark', 'zh-CN', {
+      appendContext: false,
+    })).toBe(checkoutUrl)
+  })
+
+  it('detects standalone checkout urls', () => {
+    expect(isStandaloneCheckoutUrl('https://pay.ldxp.cn/shop/BSEJH4PV/4j9om0')).toBe(true)
+    expect(isStandaloneCheckoutUrl('https://example.com/checkout/session')).toBe(true)
+    expect(isStandaloneCheckoutUrl('https://example.com/docs')).toBe(false)
   })
 
   it('detects dark mode from document root class', () => {

@@ -5742,11 +5742,14 @@ export default {
   // Custom Page (iframe embed)
   customPage: {
     title: 'Custom Page',
+    openInCurrentWindow: 'Open here',
     openInNewTab: 'Open in new tab',
     notFoundTitle: 'Page not found',
     notFoundDesc: 'This custom page does not exist or has been removed.',
     notConfiguredTitle: 'Page URL not configured',
     notConfiguredDesc: 'The URL for this custom page has not been properly configured.',
+    openingExternalTitle: 'This page needs its own window',
+    openingExternalDesc: 'This page cannot be embedded here. Continue in the current window.',
   },
 
   // Announcements Page
