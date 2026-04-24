@@ -5743,8 +5743,6 @@ export default {
   customPage: {
     title: 'Custom Page',
     openInNewTab: 'Open in new tab',
-    openingExternalTitle: 'Opening page',
-    openingExternalDesc: 'This page needs to open in the current window.',
     notFoundTitle: 'Page not found',
     notFoundDesc: 'This custom page does not exist or has been removed.',
     notConfiguredTitle: 'Page URL not configured',
