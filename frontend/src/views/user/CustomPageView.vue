@@ -43,6 +43,34 @@
           </div>
         </div>
 
+        <div
+          v-else-if="opensAsTopLevel"
+          class="flex h-full items-center justify-center p-10 text-center"
+        >
+          <div class="max-w-md">
+            <div
+              class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
+            >
+              <Icon name="externalLink" size="lg" class="text-gray-400" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('customPage.openingExternalTitle') }}
+            </h3>
+            <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">
+              {{ t('customPage.openingExternalDesc') }}
+            </p>
+            <a
+              :href="embeddedUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-primary btn-sm mt-6"
+            >
+              <Icon name="externalLink" size="sm" class="mr-1.5" :stroke-width="2" />
+              {{ t('customPage.openInNewTab') }}
+            </a>
+          </div>
+        </div>
+
         <div v-else class="custom-embed-shell">
           <a
             :href="embeddedUrl"
@@ -66,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
@@ -101,7 +129,7 @@ const menuItem = computed(() => {
   return null
 })
 
-const usesCleanEmbeddedUrl = computed(() => {
+const opensAsTopLevel = computed(() => {
   return menuItem.value ? isStandaloneCheckoutUrl(menuItem.value.url) : false
 })
 
@@ -113,7 +141,7 @@ const embeddedUrl = computed(() => {
     authStore.token,
     pageTheme.value,
     locale.value,
-    { appendContext: !usesCleanEmbeddedUrl.value },
+    { appendContext: !opensAsTopLevel.value },
   )
 })
 
@@ -121,6 +149,16 @@ const isValidUrl = computed(() => {
   const url = embeddedUrl.value
   return url.startsWith('http://') || url.startsWith('https://')
 })
+
+const assignedTopLevelUrl = ref('')
+
+const openTopLevelPage = () => {
+  if (typeof window === 'undefined') return
+  if (!opensAsTopLevel.value || !isValidUrl.value) return
+  if (assignedTopLevelUrl.value === embeddedUrl.value) return
+  assignedTopLevelUrl.value = embeddedUrl.value
+  window.location.assign(embeddedUrl.value)
+}
 
 onMounted(async () => {
   pageTheme.value = detectTheme()
@@ -135,7 +173,10 @@ onMounted(async () => {
     })
   }
 
-  if (appStore.publicSettingsLoaded) return
+  if (appStore.publicSettingsLoaded) {
+    openTopLevelPage()
+    return
+  }
 
   loading.value = true
   try {
@@ -143,7 +184,13 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  openTopLevelPage()
 })
+
+watch(
+  () => [opensAsTopLevel.value, isValidUrl.value, embeddedUrl.value],
+  () => openTopLevelPage(),
+)
 
 onUnmounted(() => {
   if (themeObserver) {
