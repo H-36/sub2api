@@ -13,14 +13,39 @@ const EMBEDDED_UI_MODE_VALUE = 'embedded'
 const EMBEDDED_SRC_HOST_QUERY_KEY = 'src_host'
 const EMBEDDED_SRC_QUERY_KEY = 'src_url'
 
+export interface EmbeddedUrlOptions {
+  appendContext?: boolean
+}
+
+export function isStandaloneCheckoutUrl(baseUrl: string): boolean {
+  if (!baseUrl) return false
+  try {
+    const url = new URL(baseUrl)
+    const hostname = url.hostname.toLowerCase()
+    const pathname = url.pathname.toLowerCase()
+
+    return (
+      hostname.startsWith('pay.') ||
+      hostname.includes('.pay.') ||
+      pathname.startsWith('/shop/') ||
+      pathname.includes('/checkout')
+    )
+  } catch {
+    return false
+  }
+}
+
 export function buildEmbeddedUrl(
   baseUrl: string,
   userId?: number,
   authToken?: string | null,
   theme: 'light' | 'dark' = 'light',
   lang?: string,
+  options: EmbeddedUrlOptions = {},
 ): string {
   if (!baseUrl) return baseUrl
+  if (options.appendContext === false) return baseUrl
+
   try {
     const url = new URL(baseUrl)
     if (userId) {

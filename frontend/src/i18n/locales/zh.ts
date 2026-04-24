@@ -5903,6 +5903,8 @@ export default {
   customPage: {
     title: '自定义页面',
     openInNewTab: '新窗口打开',
+    openingExternalTitle: '正在打开页面',
+    openingExternalDesc: '该页面需要在当前窗口打开。',
     notFoundTitle: '页面不存在',
     notFoundDesc: '该自定义页面不存在或已被删除。',
     notConfiguredTitle: '页面链接未配置',
