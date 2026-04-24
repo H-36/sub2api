@@ -45,7 +45,7 @@
 
         <div v-else class="custom-embed-shell">
           <a
-            :href="openUrl"
+            :href="embeddedUrl"
             target="_blank"
             rel="noopener noreferrer"
             class="btn btn-secondary btn-sm custom-open-fab"
@@ -54,10 +54,9 @@
             {{ t('customPage.openInNewTab') }}
           </a>
           <iframe
-            :src="iframeUrl"
+            :src="embeddedUrl"
             class="custom-embed-frame"
             allowfullscreen
-            :sandbox="usesCheckoutProxy ? 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation' : undefined"
             referrerpolicy="no-referrer"
           ></iframe>
         </div>
@@ -75,12 +74,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
-import {
-  buildCustomPageProxyUrl,
-  buildEmbeddedUrl,
-  detectTheme,
-  isStandaloneCheckoutUrl,
-} from '@/utils/embedded-url'
+import { buildEmbeddedUrl, detectTheme, isStandaloneCheckoutUrl } from '@/utils/embedded-url'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -107,11 +101,11 @@ const menuItem = computed(() => {
   return null
 })
 
-const usesCheckoutProxy = computed(() => {
+const usesCleanEmbeddedUrl = computed(() => {
   return menuItem.value ? isStandaloneCheckoutUrl(menuItem.value.url) : false
 })
 
-const openUrl = computed(() => {
+const embeddedUrl = computed(() => {
   if (!menuItem.value) return ''
   return buildEmbeddedUrl(
     menuItem.value.url,
@@ -119,20 +113,12 @@ const openUrl = computed(() => {
     authStore.token,
     pageTheme.value,
     locale.value,
-    { appendContext: !usesCheckoutProxy.value },
+    { appendContext: !usesCleanEmbeddedUrl.value },
   )
 })
 
-const iframeUrl = computed(() => {
-  if (!menuItem.value) return ''
-  if (usesCheckoutProxy.value) {
-    return buildCustomPageProxyUrl(menuItem.value.id)
-  }
-  return openUrl.value
-})
-
 const isValidUrl = computed(() => {
-  const url = openUrl.value
+  const url = embeddedUrl.value
   return url.startsWith('http://') || url.startsWith('https://')
 })
 

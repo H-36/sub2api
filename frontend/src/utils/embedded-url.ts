@@ -17,8 +17,6 @@ export interface EmbeddedUrlOptions {
   appendContext?: boolean
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
-
 export function isStandaloneCheckoutUrl(baseUrl: string): boolean {
   if (!baseUrl) return false
   try {
@@ -35,11 +33,6 @@ export function isStandaloneCheckoutUrl(baseUrl: string): boolean {
   } catch {
     return false
   }
-}
-
-export function buildCustomPageProxyUrl(menuItemId: string): string {
-  const base = API_BASE_URL.replace(/\/+$/, '')
-  return `${base}/custom-pages/${encodeURIComponent(menuItemId)}/proxy`
 }
 
 export function buildEmbeddedUrl(
