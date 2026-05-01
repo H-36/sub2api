@@ -1,13 +1,13 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(CDPATH= cd "$(dirname "$0")" && pwd -P)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 APP_DIR="${REPO_ROOT}/third_party/gpt_image_playground"
 FRONTEND_DIR="${REPO_ROOT}/frontend"
 OUTPUT_DIR="${FRONTEND_DIR}/public/image-playground-app"
 
-if [[ ! -f "${APP_DIR}/package.json" ]]; then
+if [ ! -f "${APP_DIR}/package.json" ]; then
   echo "gpt_image_playground source not found at ${APP_DIR}" >&2
   exit 1
 fi
@@ -19,7 +19,7 @@ fi
 
 cd "${APP_DIR}"
 
-if [[ ! -d node_modules ]]; then
+if [ ! -d node_modules ]; then
   npm ci
 fi
 
@@ -34,9 +34,7 @@ cp -a "${APP_DIR}/dist/." "${OUTPUT_DIR}/"
 # sources stay easy to sync.
 rm -f "${OUTPUT_DIR}/sw.js" "${OUTPUT_DIR}/manifest.webmanifest"
 
-if [[ -f "${OUTPUT_DIR}/index.html" ]]; then
-  perl -0pi -e 's#[ \t]*<link[^>]+rel="manifest"[^>]*>\n?##g; s#[ \t]*<link[^>]+rel="apple-touch-icon"[^>]*>\n?##g' "${OUTPUT_DIR}/index.html"
-
+if [ -f "${OUTPUT_DIR}/index.html" ]; then
   IMAGE_PLAYGROUND_INDEX_HTML="${OUTPUT_DIR}/index.html" node <<'NODE'
 const fs = require('node:fs')
 
@@ -47,6 +45,11 @@ if (!file || !fs.existsSync(file)) {
 
 const marker = 'data-sub2api-image-playground-theme'
 let html = fs.readFileSync(file, 'utf8')
+const originalHtml = html
+
+html = html
+  .replace(/[ \t]*<link[^>]+rel=["']manifest["'][^>]*>\n?/gi, '')
+  .replace(/[ \t]*<link[^>]+rel=["']apple-touch-icon["'][^>]*>\n?/gi, '')
 
 if (!html.includes(marker)) {
   const bridge = `    <style ${marker}>
@@ -125,6 +128,9 @@ if (!html.includes(marker)) {
     </script>`
 
   html = html.replace(/\s*<\/head>/, `\n${bridge}\n  </head>`)
+}
+
+if (html !== originalHtml) {
   fs.writeFileSync(file, html)
 }
 NODE
@@ -256,39 +262,100 @@ for (const entry of fs.readdirSync(assetDir)) {
 }
 NODE
 
-theme_check_failed=0
-if [[ -f "${OUTPUT_DIR}/index.html" ]]; then
-  perl -0ne 'exit(/data-sub2api-image-playground-theme/ ? 0 : 1)' "${OUTPUT_DIR}/index.html" || theme_check_failed=1
-fi
-while IFS= read -r -d '' file; do
-  perl -0ne 'exit(/prefers-color-scheme\s*:\s*dark/ ? 1 : 0)' "$file" || theme_check_failed=1
-done < <(find "${OUTPUT_DIR}/assets" -type f -name '*.css' -print0 2>/dev/null || true)
-if [[ "${theme_check_failed}" -ne 0 ]]; then
-  echo "Sub2API image playground theme bridge was not applied" >&2
-  exit 1
-fi
+IMAGE_PLAYGROUND_OUTPUT_DIR="${OUTPUT_DIR}" node <<'NODE'
+const fs = require('node:fs')
+const path = require('node:path')
 
-while IFS= read -r -d '' file; do
-  perl -0pi -e 's#if\s*\(\s*["'\'']serviceWorker["'\'']\s*in\s*navigator\s*\)\s*\{#if (false && "serviceWorker" in navigator) {#g; s#(["'\'']serviceWorker["'\'']\s*in\s*navigator)\s*&&#false && $1 &&#g' "$file"
-done < <(find "${OUTPUT_DIR}/assets" -type f -name '*.js' -print0 2>/dev/null || true)
+const outputDir = process.env.IMAGE_PLAYGROUND_OUTPUT_DIR
+if (!outputDir) {
+  console.error('Sub2API image playground theme bridge was not applied')
+  process.exit(1)
+}
 
-registration_check_failed=0
-while IFS= read -r -d '' file; do
-  perl -0ne '
-    while (/(["\047]serviceWorker["\047]\s*in\s*navigator\s*&&)/g) {
-      my $prefix = substr($_, 0, $-[0]);
-      exit 1 unless $prefix =~ /false\s*&&\s*$/;
+function* walk(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const file = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      yield* walk(file)
+    } else if (entry.isFile()) {
+      yield file
     }
-    while (/if\s*\(\s*(["\047]serviceWorker["\047]\s*in\s*navigator)/g) {
-      my $snippet = substr($_, $-[0], 80);
-      exit 1 unless $snippet =~ /^if\s*\(\s*false\s*&&/;
-    }
-  ' "$file" || registration_check_failed=1
-done < <(find "${OUTPUT_DIR}/assets" -type f -name '*.js' -print0 2>/dev/null || true)
+  }
+}
 
-if [[ "${registration_check_failed}" -ne 0 ]]; then
-  echo "service worker registration guard was not patched" >&2
-  exit 1
-fi
+let failed = false
+const indexFile = path.join(outputDir, 'index.html')
+if (fs.existsSync(indexFile)) {
+  const html = fs.readFileSync(indexFile, 'utf8')
+  if (!html.includes('data-sub2api-image-playground-theme')) failed = true
+}
+
+const assetDir = path.join(outputDir, 'assets')
+for (const file of walk(assetDir)) {
+  if (!file.endsWith('.css')) continue
+  const css = fs.readFileSync(file, 'utf8')
+  if (/prefers-color-scheme\s*:\s*dark/.test(css)) failed = true
+}
+
+if (failed) {
+  console.error('Sub2API image playground theme bridge was not applied')
+  process.exit(1)
+}
+NODE
+
+IMAGE_PLAYGROUND_OUTPUT_DIR="${OUTPUT_DIR}" node <<'NODE'
+const fs = require('node:fs')
+const path = require('node:path')
+
+const outputDir = process.env.IMAGE_PLAYGROUND_OUTPUT_DIR
+const assetDir = outputDir ? path.join(outputDir, 'assets') : ''
+
+if (!assetDir || !fs.existsSync(assetDir)) {
+  process.exit(0)
+}
+
+function* walk(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const file = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      yield* walk(file)
+    } else if (entry.isFile()) {
+      yield file
+    }
+  }
+}
+
+let failed = false
+for (const file of walk(assetDir)) {
+  if (!file.endsWith('.js')) continue
+  const source = fs.readFileSync(file, 'utf8')
+  const patched = source
+    .replace(/if\s*\(\s*["']serviceWorker["']\s*in\s*navigator\s*\)\s*\{/g, 'if (false && "serviceWorker" in navigator) {')
+    .replace(/(["']serviceWorker["']\s*in\s*navigator)\s*&&/g, 'false && $1 &&')
+
+  if (patched !== source) {
+    fs.writeFileSync(file, patched)
+  }
+
+  let match
+  const serviceWorkerAnd = /(["']serviceWorker["']\s*in\s*navigator\s*&&)/g
+  while ((match = serviceWorkerAnd.exec(patched)) !== null) {
+    const prefix = patched.slice(0, match.index)
+    if (!/false\s*&&\s*$/.test(prefix)) failed = true
+  }
+
+  const serviceWorkerIf = /if\s*\(\s*(["']serviceWorker["']\s*in\s*navigator)/g
+  while ((match = serviceWorkerIf.exec(patched)) !== null) {
+    const snippet = patched.slice(match.index, match.index + 80)
+    if (!/^if\s*\(\s*false\s*&&/.test(snippet)) failed = true
+  }
+}
+
+if (failed) {
+  console.error('service worker registration guard was not patched')
+  process.exit(1)
+}
+NODE
 
 echo "Image Playground built into ${OUTPUT_DIR}"
