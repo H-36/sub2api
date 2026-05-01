@@ -345,6 +345,7 @@ export default {
     announcements: '公告',
     apiKeys: 'API 密钥',
     modelPlaza: '模型广场',
+    imagePlayground: '图片工坊',
     usage: '使用记录',
     redeem: '兑换',
     affiliate: '邀请返利',
@@ -640,6 +641,11 @@ export default {
     emptyDescription: '可以切换其他平台，或清除筛选查看全部分组。',
     loadFailedTitle: '模型广场暂不可用',
     loadFailedDescription: '稍后刷新页面，或直接重试请求。'
+  },
+
+  imagePlayground: {
+    title: '图片工坊',
+    description: '使用内置图片生成与编辑工作台'
   },
 
   // Groups (shared)

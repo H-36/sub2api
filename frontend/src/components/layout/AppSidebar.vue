@@ -309,6 +309,31 @@ const ModelPlazaIcon = {
     )
 }
 
+const ImagePlaygroundIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574v7.652c0 1.067.75 1.994 1.802 2.169 2.91.486 5.872.486 8.784 0 1.052-.175 1.802-1.102 1.802-2.169V9.574c0-1.067-.75-1.994-1.802-2.169a48.524 48.524 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.855-1.03H6.43a2.192 2.192 0 00-1.855 1.03l-.822 1.316z'
+        }),
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M8.25 14.25l1.5-1.5 1.125 1.125L12.75 12l2.25 2.25M17.25 8.25h1.5a3 3 0 013 3v6a3 3 0 01-3 3H9.75'
+        }),
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M9.75 10.5h.008v.008H9.75V10.5z'
+        })
+      ]
+    )
+}
+
 const GiftIcon = {
   render: () =>
     h(
@@ -666,6 +691,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   items.push(
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/models', label: t('nav.modelPlaza'), icon: ModelPlazaIcon },
+    { path: '/image-playground', label: t('nav.imagePlayground'), icon: ImagePlaygroundIcon },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor },

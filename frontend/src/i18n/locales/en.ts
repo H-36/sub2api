@@ -345,6 +345,7 @@ export default {
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     modelPlaza: 'Model Plaza',
+    imagePlayground: 'Image Workshop',
     usage: 'Usage',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',
@@ -641,6 +642,11 @@ export default {
     emptyDescription: 'Switch platforms or clear the filter to view other public groups.',
     loadFailedTitle: 'Model plaza unavailable',
     loadFailedDescription: 'Refresh in a moment or retry the request.'
+  },
+
+  imagePlayground: {
+    title: 'Image Workshop',
+    description: 'Use the embedded image generation and editing workspace'
   },
 
   // Groups (shared)
