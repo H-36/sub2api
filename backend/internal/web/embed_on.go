@@ -110,18 +110,23 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 		}
 
 		// For index.html or SPA routes, serve with injected settings
-		if cleanPath == "index.html" || !s.fileExists(cleanPath) {
+		if cleanPath == "index.html" {
 			s.serveIndexHTML(c)
 			return
 		}
 
-		// Try local override first
-		if s.tryServeOverride(c, cleanPath) {
+		if resolvedPath, ok := resolveStaticPath(s.distFS, requestPath); ok {
+			// Try local override first
+			if s.tryServeOverride(c, resolvedPath) {
+				return
+			}
+
+			// Serve static files normally
+			s.serveStaticPath(c, resolvedPath)
 			return
 		}
 
-		// Serve static files normally
-		s.serveStaticPath(c, cleanPath)
+		s.serveIndexHTML(c)
 	}
 }
 
@@ -299,13 +304,17 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 			cleanPath = "index.html"
 		}
 
-		if file, err := distFS.Open(cleanPath); err == nil {
-			_ = file.Close()
+		if cleanPath == "index.html" {
+			serveIndexHTML(c, distFS)
+			return
+		}
+
+		if resolvedPath, ok := resolveStaticPath(distFS, requestPath); ok {
 			// Try local override first
-			if tryServeOverrideFile(c, overrideDir, cleanPath) {
+			if tryServeOverrideFile(c, overrideDir, resolvedPath) {
 				return
 			}
-			serveResolvedPath(fileServer, distFS, c, cleanPath)
+			serveResolvedPath(fileServer, distFS, c, resolvedPath)
 			return
 		}
 
@@ -450,6 +459,9 @@ func serveEmbeddedFile(c *gin.Context, fsys fs.FS, resolvedPath string) {
 	if contentType == "" {
 		contentType = http.DetectContentType(content)
 	}
+	if strings.HasSuffix(resolvedPath, ".html") {
+		content = replaceNoncePlaceholder(content, middleware.GetNonceFromContext(c))
+	}
 
 	c.Data(http.StatusOK, contentType, content)
 	c.Abort()
@@ -470,6 +482,7 @@ func serveIndexHTML(c *gin.Context, fsys fs.FS) {
 		c.Abort()
 		return
 	}
+	content = replaceNoncePlaceholder(content, middleware.GetNonceFromContext(c))
 
 	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 	c.Abort()

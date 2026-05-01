@@ -598,6 +598,32 @@ func TestFrontendServer_Middleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
 	})
+
+	t.Run("serves_image_playground_html_with_nonce", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set(middleware.CSPNonceKey, "image-playground-nonce")
+			c.Next()
+		})
+		router.Use(server.Middleware())
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/image-playground-app/", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+		assert.Contains(t, w.Body.String(), `data-sub2api-image-playground-theme`)
+		assert.Contains(t, w.Body.String(), `nonce="image-playground-nonce"`)
+		assert.NotContains(t, w.Body.String(), NonceHTMLPlaceholder)
+	})
 }
 
 func TestNewFrontendServer(t *testing.T) {
@@ -767,6 +793,27 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+	})
+
+	t.Run("serves_image_playground_html_with_nonce", func(t *testing.T) {
+		frontendMiddleware := ServeEmbeddedFrontend()
+
+		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set(middleware.CSPNonceKey, "legacy-image-playground-nonce")
+			c.Next()
+		})
+		router.Use(frontendMiddleware)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/image-playground-app/", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+		assert.Contains(t, w.Body.String(), `data-sub2api-image-playground-theme`)
+		assert.Contains(t, w.Body.String(), `nonce="legacy-image-playground-nonce"`)
+		assert.NotContains(t, w.Body.String(), NonceHTMLPlaceholder)
 	})
 
 	t.Run("serves_override_files_from_data_dir", func(t *testing.T) {

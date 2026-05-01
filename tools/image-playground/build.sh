@@ -67,7 +67,7 @@ if (!html.includes(marker)) {
         color-scheme: light;
       }
     </style>
-    <script ${marker}>
+    <script ${marker} nonce="__CSP_NONCE_VALUE__">
       (() => {
         const MESSAGE_TYPE = 'sub2api:image-playground-theme'
         const DEFAULT_LIGHT_BG = '#f9fafb'
