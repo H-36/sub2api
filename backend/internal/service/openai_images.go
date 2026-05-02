@@ -938,14 +938,15 @@ func rewriteOpenAIImagesMultipartModel(body []byte, contentType string, model st
 			return nil, "", fmt.Errorf("read multipart body: %w", err)
 		}
 
-		formName := strings.TrimSpace(part.FormName())
 		partHeader := cloneMultipartHeader(part.Header)
+		normalizeOpenAIImagesMultipartImageField(partHeader)
 		target, err := writer.CreatePart(partHeader)
 		if err != nil {
 			_ = part.Close()
 			return nil, "", fmt.Errorf("create multipart part: %w", err)
 		}
 
+		formName := strings.TrimSpace(part.FormName())
 		if formName == "model" && part.FileName() == "" {
 			if _, err := target.Write([]byte(model)); err != nil {
 				_ = part.Close()
@@ -981,6 +982,22 @@ func cloneMultipartHeader(src textproto.MIMEHeader) textproto.MIMEHeader {
 		dst[key] = copied
 	}
 	return dst
+}
+
+func normalizeOpenAIImagesMultipartImageField(header textproto.MIMEHeader) {
+	disposition := header.Get("Content-Disposition")
+	if disposition == "" {
+		return
+	}
+	mediaType, params, err := mime.ParseMediaType(disposition)
+	if err != nil || !strings.EqualFold(mediaType, "form-data") {
+		return
+	}
+	if !strings.HasPrefix(strings.TrimSpace(params["name"]), "image[") {
+		return
+	}
+	params["name"] = "image"
+	header.Set("Content-Disposition", mime.FormatMediaType(mediaType, params))
 }
 
 func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(resp *http.Response, c *gin.Context) (OpenAIUsage, int, error) {

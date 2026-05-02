@@ -125,6 +125,40 @@ describe('callImageApi', () => {
     )
   })
 
+  it('sends reference images with the multipart image field on Images API edits', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.startsWith('data:')) {
+        return new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { 'Content-Type': 'image/png' },
+        })
+      }
+
+      return new Response(JSON.stringify({
+        data: [{ b64_json: 'aW1hZ2U=' }],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+
+    await callImageApi({
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key' },
+      prompt: 'prompt',
+      params: { ...DEFAULT_PARAMS },
+      inputImageDataUrls: ['data:image/png;base64,AQID'],
+    })
+
+    const apiCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith('/images/edits'))
+    expect(apiCall).toBeTruthy()
+    const [, init] = apiCall!
+    const body = (init as RequestInit).body
+    expect(body).toBeInstanceOf(FormData)
+    expect((body as FormData).getAll('image')).toHaveLength(1)
+    expect((body as FormData).getAll('image[]')).toHaveLength(0)
+  })
+
   it('ignores stored API proxy settings when the current deployment has no proxy', async () => {
     vi.stubEnv('VITE_API_PROXY_AVAILABLE', 'false')
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
