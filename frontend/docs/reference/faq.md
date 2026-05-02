@@ -36,7 +36,7 @@ description: 围绕 Key、分组、模型、入口协议和公开查询页的常
 
 - Claude / Anthropic 兼容客户端，优先 `/v1/messages`
 - OpenAI 兼容客户端，优先 `/v1/chat/completions` 或 `/v1/responses`
-- Gemini SDK / CLI，走 `/v1beta/*`
+- Gemini SDK / CLI 这类原生客户端，才走 `/v1beta/*`
 
 ## 为什么 `/v1/models` 有结果，但正式请求还是失败？
 
@@ -47,9 +47,11 @@ description: 围绕 Key、分组、模型、入口协议和公开查询页的常
 - 某个能力当前上游不支持
 - 请求体格式与协议不匹配
 
-## 为什么 Gemini 场景要看 `/v1beta/models`？
+比如 OpenAI 分组通常走 `/v1/chat/completions` 或 `/v1/responses`，不要直接拿它去打 `/v1/messages`。
 
-因为 Gemini 原生兼容层就是基于 `/v1beta` 提供的，那里返回的结果更接近你在 Gemini SDK / CLI 场景里真正会用到的模型集合。
+## 什么时候才需要看 `/v1beta/models`？
+
+只有明确接 Gemini SDK / CLI 这类原生客户端时才需要。普通 OpenAI 兼容、Claude 兼容、Codex、Claude Code 场景，优先看 `/v1/models`。
 
 ## 社区里说的“刀”“倍率”“缓存计费”是什么意思？
 

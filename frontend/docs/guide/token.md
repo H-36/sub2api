@@ -48,12 +48,7 @@ curl https://puaai.xyz/v1/models \
   -H "Authorization: Bearer sk-your-api-key"
 ```
 
-Gemini 分组使用：
-
-```bash
-curl https://puaai.xyz/v1beta/models \
-  -H "Authorization: Bearer sk-your-api-key"
-```
+明确接 Gemini 原生 SDK / CLI 时，再按对应页面查看 `/v1beta` 配置。
 
 ## 工具配置
 

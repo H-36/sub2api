@@ -21,29 +21,14 @@ Base URL: https://puaai.xyz
 Authorization: Bearer sk-your-api-key
 ```
 
-::: tip 文档站地址不是 Base URL
-`https://puaai.xyz/docs` 是文档站；绝大多数客户端填写的应该是主域名 `https://puaai.xyz`。
-:::
-
 ## 1. 模型列表自检
-
-### Claude / OpenAI 兼容分组
 
 ```bash
 curl https://puaai.xyz/v1/models \
   -H "Authorization: Bearer sk-your-api-key"
 ```
 
-### Gemini 分组
-
-```bash
-curl https://puaai.xyz/v1beta/models \
-  -H "Authorization: Bearer sk-your-api-key"
-```
-
-::: tip 为什么这里要分开
-`/v1/models` 和 `/v1beta/models` 分别对应不同兼容层。Gemini SDK / CLI 场景优先看 `v1beta`，其余大多数 Claude / OpenAI 兼容客户端优先看 `v1`。
-:::
+大多数客户端和 API 调用都先看 `/v1/models`。特殊客户端按对应接入页单独配置即可。
 
 ## 2. Claude / Anthropic 兼容请求
 
@@ -51,7 +36,7 @@ curl https://puaai.xyz/v1beta/models \
 curl https://puaai.xyz/v1/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-your-api-key" \
-  -x POST \
+  -X POST \
   -d '{
     "model": "claude-sonnet-4-5",
     "max_tokens": 256,
@@ -67,7 +52,7 @@ curl https://puaai.xyz/v1/messages \
 curl https://puaai.xyz/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-your-api-key" \
-  -x POST \
+  -X POST \
   -d '{
     "model": "gpt-5.4-mini",
     "messages": [
@@ -82,32 +67,14 @@ curl https://puaai.xyz/v1/chat/completions \
 curl https://puaai.xyz/v1/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-your-api-key" \
-  -x POST \
+  -X POST \
   -d '{
     "model": "gpt-5.4-mini",
     "input": "Reply with: puaai ok"
   }'
 ```
 
-## 5. Gemini 原生请求
-
-```bash
-curl "https://puaai.xyz/v1beta/models/gemini-2.5-flash:generateContent" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-your-api-key" \
-  -x POST \
-  -d '{
-    "contents": [
-      {
-        "parts": [
-          { "text": "Reply with: puaai ok" }
-        ]
-      }
-    ]
-  }'
-```
-
-## 6. 成功与失败的判断
+## 5. 成功与失败的判断
 
 ### 成功时你通常会看到
 
@@ -122,11 +89,15 @@ curl "https://puaai.xyz/v1beta/models/gemini-2.5-flash:generateContent" \
 3. 模型名不在当前分组可见范围内
 4. 入口协议和分组平台不匹配
 
+::: warning 模型列表入口和正式请求入口不是一回事
+OpenAI 分组通常走 `/v1/chat/completions` 或 `/v1/responses`；Claude / Anthropic 分组通常走 `/v1/messages`。不要因为 `/v1/models` 能返回，就把正式请求入口混用。
+:::
+
 ::: warning 不要一开始就在复杂客户端里盲配
 像 Cline、Open WebUI、LobeChat、Claude Code、Gemini CLI 这类客户端，往往会把协议细节和请求体包装起来。先跑一遍 curl，排错成本会低很多。
 :::
 
-## 7. 接入客户端前的建议
+## 6. 接入客户端前的建议
 
 如果你接的是 Cline、Open WebUI、LobeChat、Claude Code、Gemini CLI 一类客户端，先用 `curl` 跑通一次，再去填客户端配置，会少掉大半排错时间。
 

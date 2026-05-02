@@ -31,19 +31,12 @@ description: 用最短路径完成 puaai 首次接入。
 
 不要先手填模型名，先确认这把 Key 当前真正可用的模型。
 
-Claude / OpenAI 兼容分组：
-
 ```bash
 curl https://puaai.xyz/v1/models \
   -H "Authorization: Bearer sk-your-api-key"
 ```
 
-Gemini 分组：
-
-```bash
-curl https://puaai.xyz/v1beta/models \
-  -H "Authorization: Bearer sk-your-api-key"
-```
+Gemini CLI 这类特殊客户端，按对应接入页单独配置即可。
 
 ## 4. 开始接入
 
