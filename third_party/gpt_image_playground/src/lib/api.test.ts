@@ -3,10 +3,44 @@ import { DEFAULT_PARAMS } from '../types'
 import { DEFAULT_SETTINGS } from './apiProfiles'
 import { callImageApi } from './api'
 
+function stubImageCanvas(width: number, height: number) {
+  const drawImage = vi.fn()
+  const toBlob = vi.fn((callback: BlobCallback, type?: string) => {
+    callback(new Blob([new Uint8Array([4, 5, 6])], { type: type || 'image/png' }))
+  })
+
+  class TestImage {
+    naturalWidth = width
+    naturalHeight = height
+    onload: (() => void) | null = null
+    onerror: (() => void) | null = null
+
+    set src(_value: string) {
+      queueMicrotask(() => this.onload?.())
+    }
+  }
+
+  vi.stubGlobal('Image', TestImage)
+  vi.stubGlobal('document', {
+    createElement: (tagName: string) => {
+      if (tagName !== 'canvas') throw new Error(`Unexpected element: ${tagName}`)
+      return {
+        width: 0,
+        height: 0,
+        getContext: () => ({ drawImage }),
+        toBlob,
+      }
+    },
+  })
+
+  return { drawImage, toBlob }
+}
+
 describe('callImageApi', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
   })
 
   it.each([false, true])(
@@ -126,6 +160,7 @@ describe('callImageApi', () => {
   })
 
   it('sends reference images with the multipart image field on Images API edits', async () => {
+    stubImageCanvas(1024, 1024)
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input)
       if (url.startsWith('data:')) {
@@ -157,6 +192,66 @@ describe('callImageApi', () => {
     expect(body).toBeInstanceOf(FormData)
     expect((body as FormData).getAll('image')).toHaveLength(1)
     expect((body as FormData).getAll('image[]')).toHaveLength(0)
+  })
+
+  it('normalizes small reference images to PNG before sending Images API edits', async () => {
+    const { drawImage } = stubImageCanvas(1, 1)
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      data: [{ b64_json: 'aW1hZ2U=' }],
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+
+    await callImageApi({
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key' },
+      prompt: 'prompt',
+      params: { ...DEFAULT_PARAMS },
+      inputImageDataUrls: ['data:image/png;base64,AQID'],
+    })
+
+    const apiCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith('/images/edits'))
+    expect(apiCall).toBeTruthy()
+    const [, init] = apiCall!
+    const body = (init as RequestInit).body as FormData
+    const image = body.get('image')
+    expect(image).toBeInstanceOf(Blob)
+    expect((image as Blob).type).toBe('image/png')
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 512, 512)
+  })
+
+  it('keeps normal-sized PNG reference images as data blobs on Images API edits', async () => {
+    const { drawImage } = stubImageCanvas(1024, 1024)
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.startsWith('data:')) {
+        return new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { 'Content-Type': 'image/png' },
+        })
+      }
+
+      return new Response(JSON.stringify({
+        data: [{ b64_json: 'aW1hZ2U=' }],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+
+    await callImageApi({
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key' },
+      prompt: 'prompt',
+      params: { ...DEFAULT_PARAMS },
+      inputImageDataUrls: ['data:image/png;base64,AQID'],
+    })
+
+    const apiCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith('/images/edits'))
+    expect(apiCall).toBeTruthy()
+    const [, init] = apiCall!
+    const body = (init as RequestInit).body as FormData
+    expect(body.get('image')).toBeInstanceOf(Blob)
+    expect(drawImage).not.toHaveBeenCalled()
   })
 
   it('ignores stored API proxy settings when the current deployment has no proxy', async () => {

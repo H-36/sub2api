@@ -5,6 +5,9 @@ export interface ImageDimensions {
   height: number
 }
 
+const MIN_EDIT_IMAGE_EDGE = 512
+const PASSTHROUGH_EDIT_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
+
 export async function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
@@ -25,6 +28,11 @@ export async function dataUrlToBlob(dataUrl: string, fallbackType = 'image/png')
   return blob.type ? blob : new Blob([await blob.arrayBuffer()], { type: fallbackType })
 }
 
+function getDataUrlMimeType(dataUrl: string): string {
+  const match = /^data:([^;,]+)/i.exec(dataUrl)
+  return match?.[1]?.toLowerCase() ?? ''
+}
+
 export async function imageDataUrlToPngBlob(dataUrl: string): Promise<Blob> {
   const image = await loadImage(dataUrl)
   const canvas = document.createElement('canvas')
@@ -33,6 +41,27 @@ export async function imageDataUrlToPngBlob(dataUrl: string): Promise<Blob> {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('当前浏览器不支持 Canvas')
   ctx.drawImage(image, 0, 0)
+  return canvasToBlob(canvas, 'image/png')
+}
+
+export async function editImageDataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const image = await loadImage(dataUrl)
+  const minEdge = Math.min(image.naturalWidth, image.naturalHeight)
+  const shouldResize = minEdge > 0 && minEdge < MIN_EDIT_IMAGE_EDGE
+  const type = getDataUrlMimeType(dataUrl)
+  if (!shouldResize && PASSTHROUGH_EDIT_IMAGE_TYPES.has(type)) {
+    return dataUrlToBlob(dataUrl)
+  }
+
+  const scale = shouldResize ? MIN_EDIT_IMAGE_EDGE / minEdge : 1
+  const width = Math.max(1, Math.round(image.naturalWidth * scale))
+  const height = Math.max(1, Math.round(image.naturalHeight * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('当前浏览器不支持 Canvas')
+  ctx.drawImage(image, 0, 0, width, height)
   return canvasToBlob(canvas, 'image/png')
 }
 

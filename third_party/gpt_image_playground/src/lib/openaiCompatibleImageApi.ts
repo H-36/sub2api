@@ -1,5 +1,5 @@
 import type { ApiProfile, ImageApiResponse, ResponsesApiResponse, TaskParams } from '../types'
-import { dataUrlToBlob, imageDataUrlToPngBlob, maskDataUrlToPngBlob } from './canvasImage'
+import { editImageDataUrlToBlob, imageDataUrlToPngBlob, maskDataUrlToPngBlob } from './canvasImage'
 import { buildApiUrl, isApiProxyAvailable, readClientDevProxyConfig } from './devProxy'
 import {
   assertImageInputPayloadSize,
@@ -293,7 +293,7 @@ async function callImagesApiSingle(opts: CallApiOptions, profile: ApiProfile): P
         const dataUrl = inputImageDataUrls[i]
         const blob = opts.maskDataUrl && i === 0
           ? await imageDataUrlToPngBlob(dataUrl)
-          : await dataUrlToBlob(dataUrl)
+          : await editImageDataUrlToBlob(dataUrl)
         imageBlobs.push(blob)
       }
 
