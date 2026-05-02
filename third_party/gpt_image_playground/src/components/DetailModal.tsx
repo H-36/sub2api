@@ -5,6 +5,7 @@ import { formatImageRatio } from '../lib/size'
 import { ActualValueBadge, DetailParamValue } from '../lib/paramDisplay'
 import { copyBlobToClipboard, copyTextToClipboard, getClipboardFailureMessage } from '../lib/clipboard'
 import { createMaskPreviewDataUrl } from '../lib/canvasImage'
+import { isInterruptedTaskError } from '../lib/taskState'
 
 export default function DetailModal() {
   const tasks = useStore((s) => s.tasks)
@@ -169,6 +170,7 @@ export default function DetailModal() {
   const taskProfileName = task.apiProfileName || '未知'
   const taskModel = task.apiModel || '未知'
   const showSourceInfo = Boolean(task.apiProvider || task.apiProfileName || task.apiModel)
+  const isInterrupted = task.status === 'error' && isInterruptedTaskError(task.error)
 
   const formatTime = (ts: number | null) => {
     if (!ts) return ''
@@ -381,11 +383,14 @@ export default function DetailModal() {
           )}
           {task.status === 'error' && (
             <div className="w-full max-w-md px-4 text-center">
-              <svg className="w-10 h-10 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-10 h-10 mx-auto mb-2 ${isInterrupted ? 'text-amber-400' : 'text-red-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
+              <p className={`mb-1 text-sm font-medium ${isInterrupted ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
+                {isInterrupted ? '任务已中断' : '生成失败'}
+              </p>
               <p
-                className="overflow-hidden text-sm leading-6 text-red-500 break-all"
+                className={`overflow-hidden text-sm leading-6 break-all ${isInterrupted ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}
                 style={{
                   display: '-webkit-box',
                   WebkitBoxOrient: 'vertical',

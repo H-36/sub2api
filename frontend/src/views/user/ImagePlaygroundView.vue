@@ -16,14 +16,19 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
 type PageTheme = 'light' | 'dark'
+const RUNNING_STATUS_MESSAGE = 'sub2api:image-playground-running-status'
+const LEAVE_RUNNING_TASK_MESSAGE = '当前还有图片生成任务正在进行。离开页面会中断本地请求，回来后任务会显示为已中断。确定要离开吗？'
 
 const initialTheme = detectTheme()
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const pageTheme = ref<PageTheme>(initialTheme)
 const pageBackground = ref(detectBackground(initialTheme))
+const hasRunningTasks = ref(false)
+const runningTaskCount = ref(0)
 
 let themeObserver: MutationObserver | null = null
 
@@ -84,10 +89,38 @@ function syncFrameTheme() {
   )
 }
 
+function handleFrameMessage(event: MessageEvent) {
+  if (event.origin !== window.location.origin) return
+  const data = event.data
+  if (!data || data.type !== RUNNING_STATUS_MESSAGE) return
+
+  const count = Number(data.runningCount)
+  runningTaskCount.value = Number.isFinite(count) && count > 0 ? count : 0
+  hasRunningTasks.value = Boolean(data.running) || runningTaskCount.value > 0
+}
+
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (!hasRunningTasks.value) return
+
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!hasRunningTasks.value || window.confirm(LEAVE_RUNNING_TASK_MESSAGE)) {
+    next()
+    return
+  }
+
+  next(false)
+})
+
 onMounted(() => {
   updateThemeState()
   iframeSrc.value = buildIframeSrc()
   syncFrameTheme()
+  window.addEventListener('message', handleFrameMessage)
+  window.addEventListener('beforeunload', handleBeforeUnload)
 
   themeObserver = new MutationObserver(() => {
     updateThemeState()
@@ -100,6 +133,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('message', handleFrameMessage)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+
   if (themeObserver) {
     themeObserver.disconnect()
     themeObserver = null

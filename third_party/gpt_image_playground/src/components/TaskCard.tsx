@@ -3,6 +3,7 @@ import type { TaskRecord } from '../types'
 import { useStore, getCachedImage, ensureImageCached, updateTaskInStore, retryTask } from '../store'
 import { formatImageRatio } from '../lib/size'
 import { ParamValue } from '../lib/paramDisplay'
+import { isInterruptedTaskError } from '../lib/taskState'
 
 interface Props {
   task: TaskRecord
@@ -164,6 +165,7 @@ export default function TaskCard({
   const aggregateActualParams = task.outputImages?.length
     ? { ...task.actualParams, n: task.outputImages.length }
     : task.actualParams
+  const isInterrupted = task.status === 'error' && isInterruptedTaskError(task.error)
   const isSwipeReady = Math.abs(swipeOffset) >= 40
   const showSwipeAction = isSwipeReady || swipeActionActive
   const showRunningTimer = task.status === 'running'
@@ -256,7 +258,7 @@ export default function TaskCard({
           {task.status === 'error' && (
             <div className="flex flex-col items-center gap-1 px-2">
               <svg
-                className="w-7 h-7 text-red-400"
+                className={`w-7 h-7 ${isInterrupted ? 'text-amber-400' : 'text-red-400'}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -268,8 +270,8 @@ export default function TaskCard({
                   d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <span className="text-xs text-red-400 text-center leading-tight">
-                失败
+              <span className={`text-xs text-center leading-tight ${isInterrupted ? 'text-amber-500 dark:text-amber-400' : 'text-red-400'}`}>
+                {isInterrupted ? '已中断' : '失败'}
               </span>
             </div>
           )}

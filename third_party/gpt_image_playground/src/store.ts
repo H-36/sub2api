@@ -26,6 +26,7 @@ import { callImageApi } from './lib/api'
 import { validateMaskMatchesImage } from './lib/canvasImage'
 import { orderInputImagesForMask } from './lib/mask'
 import { getChangedParams, normalizeParamsForSettings } from './lib/paramCompatibility'
+import { INTERRUPTED_TASK_ERROR } from './lib/taskState'
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate'
 
 // ===== Image cache =====
@@ -33,7 +34,6 @@ import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate'
 
 const imageCache = new Map<string, string>()
 const openAIWatchdogTimers = new Map<string, ReturnType<typeof setTimeout>>()
-const OPENAI_INTERRUPTED_ERROR = '请求中断'
 
 function createOpenAITimeoutError(timeoutSeconds: number) {
   return `请求超时：超过 ${timeoutSeconds} 秒仍未完成，请稍后重试或提高超时时间。`
@@ -334,7 +334,7 @@ export function markInterruptedOpenAIRunningTasks(tasks: TaskRecord[], now = Dat
     const updated: TaskRecord = {
       ...task,
       status: 'error',
-      error: OPENAI_INTERRUPTED_ERROR,
+      error: INTERRUPTED_TASK_ERROR,
       finishedAt: now,
       elapsed: Math.max(0, now - task.createdAt),
     }

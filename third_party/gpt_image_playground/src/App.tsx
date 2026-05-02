@@ -17,9 +17,45 @@ import Toast from './components/Toast'
 import MaskEditorModal from './components/MaskEditorModal'
 import ImageContextMenu from './components/ImageContextMenu'
 
+const SUB2API_IMAGE_PLAYGROUND_QUERY = 'sub2apiImagePlayground'
+const SUB2API_RUNNING_STATUS_MESSAGE = 'sub2api:image-playground-running-status'
+
+function isEmbeddedSub2APIImagePlayground() {
+  try {
+    return new URLSearchParams(window.location.search).get(SUB2API_IMAGE_PLAYGROUND_QUERY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export default function App() {
   const setSettings = useStore((s) => s.setSettings)
   useDockerApiUrlMigrationNotice()
+
+  useEffect(() => {
+    if (!isEmbeddedSub2APIImagePlayground()) return
+
+    const postRunningStatus = () => {
+      const runningCount = useStore.getState().tasks.filter((task) => task.status === 'running').length
+      window.parent?.postMessage(
+        {
+          type: SUB2API_RUNNING_STATUS_MESSAGE,
+          running: runningCount > 0,
+          runningCount,
+        },
+        window.location.origin,
+      )
+    }
+
+    postRunningStatus()
+    const unsubscribe = useStore.subscribe((state, previousState) => {
+      if (state.tasks !== previousState.tasks) {
+        postRunningStatus()
+      }
+    })
+
+    return unsubscribe
+  }, [])
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
