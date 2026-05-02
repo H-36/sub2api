@@ -47,11 +47,9 @@ export default function App() {
 
     const providerParam = searchParams.get('provider')?.trim().toLowerCase()
     if (providerParam) {
-      const provider: ApiProvider | null = providerParam === 'fal'
-        ? 'fal'
-        : ['openai', 'openai-compatible'].includes(providerParam)
-          ? 'openai'
-          : null
+      const provider: ApiProvider | null = ['openai', 'openai-compatible'].includes(providerParam)
+        ? 'openai'
+        : null
       if (provider) {
         const state = useStore.getState()
         const settings = normalizeSettings(state.settings)
@@ -63,8 +61,8 @@ export default function App() {
                   ...switchApiProfileProvider(profile, provider),
                   ...(nextSettings.baseUrl !== undefined ? { baseUrl: nextSettings.baseUrl } : {}),
                   ...(nextSettings.apiKey !== undefined ? { apiKey: nextSettings.apiKey } : {}),
-                  ...(provider === 'openai' && nextSettings.apiMode !== undefined ? { apiMode: nextSettings.apiMode } : {}),
-                  ...(provider === 'openai' && nextSettings.codexCli !== undefined ? { codexCli: nextSettings.codexCli } : {}),
+                  ...(nextSettings.apiMode !== undefined ? { apiMode: nextSettings.apiMode } : {}),
+                  ...(nextSettings.codexCli !== undefined ? { codexCli: nextSettings.codexCli } : {}),
                 }
               : profile,
           )

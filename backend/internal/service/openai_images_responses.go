@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -546,6 +547,60 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthNonStreamingResponse(
 	return usage, len(results), nil
 }
 
+func (s *OpenAIGatewayService) handleOpenAIImagesOAuthPlaygroundSSENonStreamingResponse(
+	resp *http.Response,
+	c *gin.Context,
+	writer *openAIImagesPlaygroundSSEWriter,
+	responseFormat string,
+	fallbackModel string,
+) (OpenAIUsage, int, error) {
+	if writer == nil {
+		return s.handleOpenAIImagesOAuthNonStreamingResponse(resp, c, responseFormat, fallbackModel)
+	}
+	body, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
+	if err != nil {
+		if errors.Is(err, ErrUpstreamResponseBodyTooLarge) {
+			setOpsUpstreamError(c, http.StatusBadGateway, "upstream response too large", "")
+			_ = writer.WriteError("upstream_error", "Upstream response too large")
+		} else {
+			_ = writer.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
+		}
+		return OpenAIUsage{}, 0, err
+	}
+
+	var usage OpenAIUsage
+	for _, line := range bytes.Split(body, []byte("\n")) {
+		line = bytes.TrimRight(line, "\r")
+		data, ok := extractOpenAISSEDataLine(string(line))
+		if !ok || data == "" || data == "[DONE]" {
+			continue
+		}
+		s.parseSSEUsageBytes([]byte(data), &usage)
+	}
+	results, createdAt, usageRaw, firstMeta, _, err := collectOpenAIImagesFromResponsesBody(body)
+	if err != nil {
+		_ = writer.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
+		return OpenAIUsage{}, 0, err
+	}
+	if len(results) == 0 {
+		_ = writer.WriteError("upstream_error", "upstream did not return image output")
+		return OpenAIUsage{}, 0, fmt.Errorf("upstream did not return image output")
+	}
+	if strings.TrimSpace(firstMeta.Model) == "" {
+		firstMeta.Model = strings.TrimSpace(fallbackModel)
+	}
+
+	responseBody, err := buildOpenAIImagesAPIResponse(results, createdAt, usageRaw, firstMeta, responseFormat)
+	if err != nil {
+		_ = writer.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
+		return OpenAIUsage{}, 0, err
+	}
+	if err := writer.WriteDoneJSON(responseBody); err != nil {
+		return OpenAIUsage{}, 0, err
+	}
+	return usage, len(results), nil
+}
+
 func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 	resp *http.Response,
 	c *gin.Context,
@@ -724,6 +779,14 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	channelMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
+	playgroundSSE, err := NewOpenAIImagesPlaygroundSSEWriter(c, parsed)
+	if err != nil {
+		return nil, err
+	}
+	if playgroundSSE != nil {
+		defer playgroundSSE.Stop()
+	}
+
 	requestModel := strings.TrimSpace(parsed.Model)
 	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
 		requestModel = mapped
@@ -732,6 +795,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		requestModel = "gpt-image-2"
 	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
+		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	logger.LegacyPrintf(
@@ -754,17 +818,20 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
+		playgroundSSE.WriteUpstreamError(err)
 		return nil, err
 	}
 
 	responsesBody, err := buildOpenAIImagesResponsesRequest(parsed, requestModel)
 	if err != nil {
+		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	setOpsUpstreamRequestBody(c, responsesBody)
 
 	upstreamReq, err := s.buildUpstreamRequest(ctx, c, account, responsesBody, token, true, parsed.StickySessionSeed(), false)
 	if err != nil {
+		playgroundSSE.WriteUpstreamError(err)
 		return nil, err
 	}
 	upstreamReq.Header.Set("Content-Type", "application/json")
@@ -789,6 +856,9 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 			Kind:               "request_error",
 			Message:            safeErr,
 		})
+		if playgroundSSE != nil {
+			_ = playgroundSSE.WriteError("upstream_error", safeErr)
+		}
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
 	if resp.StatusCode >= 400 {
@@ -815,6 +885,20 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 				RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode),
 			}
 		}
+		if playgroundSSE != nil {
+			usage, imageCount, handleErr := s.handleOpenAIImagesPlaygroundSSENonStreamingResponse(resp, c, playgroundSSE)
+			return &OpenAIForwardResult{
+				RequestID:       resp.Header.Get("x-request-id"),
+				Usage:           usage,
+				Model:           requestModel,
+				UpstreamModel:   requestModel,
+				Stream:          false,
+				ResponseHeaders: resp.Header.Clone(),
+				Duration:        time.Since(startTime),
+				ImageCount:      imageCount,
+				ImageSize:       parsed.SizeTier,
+			}, handleErr
+		}
 		return s.handleErrorResponse(ctx, resp, c, account, responsesBody)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -826,6 +910,11 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	)
 	if parsed.Stream {
 		usage, imageCount, firstTokenMs, err = s.handleOpenAIImagesOAuthStreamingResponse(resp, c, startTime, parsed.ResponseFormat, openAIImagesStreamPrefix(parsed), requestModel)
+		if err != nil {
+			return nil, err
+		}
+	} else if playgroundSSE != nil {
+		usage, imageCount, err = s.handleOpenAIImagesOAuthPlaygroundSSENonStreamingResponse(resp, c, playgroundSSE, parsed.ResponseFormat, requestModel)
 		if err != nil {
 			return nil, err
 		}

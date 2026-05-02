@@ -4,8 +4,6 @@ import { readRuntimeEnv } from './runtimeEnv'
 const DEFAULT_BASE_URL = readRuntimeEnv(import.meta.env.VITE_DEFAULT_API_URL) || 'https://api.openai.com/v1'
 export const DEFAULT_IMAGES_MODEL = 'gpt-image-2'
 export const DEFAULT_RESPONSES_MODEL = 'gpt-5.5'
-export const DEFAULT_FAL_BASE_URL = 'https://fal.run'
-export const DEFAULT_FAL_MODEL = 'openai/gpt-image-2'
 export const DEFAULT_OPENAI_PROFILE_ID = 'default-openai'
 export const DEFAULT_API_TIMEOUT = 600
 
@@ -25,38 +23,10 @@ export function createDefaultOpenAIProfile(overrides: Partial<ApiProfile> = {}):
   }
 }
 
-export function createDefaultFalProfile(overrides: Partial<ApiProfile> = {}): ApiProfile {
-  return {
-    id: `fal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-    name: '新配置',
-    provider: 'fal',
-    baseUrl: DEFAULT_FAL_BASE_URL,
-    apiKey: '',
-    model: DEFAULT_FAL_MODEL,
-    timeout: DEFAULT_API_TIMEOUT,
-    apiMode: 'images',
-    codexCli: false,
-    apiProxy: false,
-    ...overrides,
-  }
-}
-
-export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvider): ApiProfile {
-  if (provider === 'fal') {
-    return {
-      ...profile,
-      provider,
-      baseUrl: DEFAULT_FAL_BASE_URL,
-      model: DEFAULT_FAL_MODEL,
-      apiMode: 'images',
-      codexCli: false,
-      apiProxy: false,
-    }
-  }
-
+export function switchApiProfileProvider(profile: ApiProfile, _provider: ApiProvider): ApiProfile {
   return {
     ...profile,
-    provider,
+    provider: 'openai',
     baseUrl: DEFAULT_BASE_URL,
     model: DEFAULT_IMAGES_MODEL,
   }
@@ -64,18 +34,19 @@ export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvi
 
 export function normalizeApiProfile(input: unknown, fallback?: Partial<ApiProfile>): ApiProfile {
   const record = input && typeof input === 'object' ? input as Record<string, unknown> : {}
-  const provider: ApiProvider = record.provider === 'fal' ? 'fal' : 'openai'
-  const defaults = provider === 'fal' ? createDefaultFalProfile(fallback) : createDefaultOpenAIProfile(fallback)
-  const apiMode: ApiMode = record.apiMode === 'responses' ? 'responses' : 'images'
+  const provider: ApiProvider = 'openai'
+  const isOpenAIProvider = !('provider' in record) || record.provider === 'openai'
+  const defaults = createDefaultOpenAIProfile(fallback)
+  const apiMode: ApiMode = isOpenAIProvider && record.apiMode === 'responses' ? 'responses' : 'images'
 
   return {
     ...defaults,
     id: typeof record.id === 'string' && record.id.trim() ? record.id : defaults.id,
     name: typeof record.name === 'string' && record.name.trim() ? record.name : defaults.name,
     provider,
-    baseUrl: typeof record.baseUrl === 'string' ? record.baseUrl : defaults.baseUrl,
-    apiKey: typeof record.apiKey === 'string' ? record.apiKey : defaults.apiKey,
-    model: typeof record.model === 'string' && record.model.trim() ? record.model : defaults.model,
+    baseUrl: isOpenAIProvider && typeof record.baseUrl === 'string' ? record.baseUrl : defaults.baseUrl,
+    apiKey: isOpenAIProvider && typeof record.apiKey === 'string' ? record.apiKey : defaults.apiKey,
+    model: isOpenAIProvider && typeof record.model === 'string' && record.model.trim() ? record.model : defaults.model,
     timeout: typeof record.timeout === 'number' && Number.isFinite(record.timeout) ? record.timeout : defaults.timeout,
     apiMode,
     codexCli: Boolean(record.codexCli),
@@ -94,9 +65,12 @@ export function normalizeSettings(input: Partial<AppSettings> | unknown): AppSet
     codexCli: Boolean(record.codexCli),
     apiProxy: Boolean(record.apiProxy),
   })
-  const profiles = Array.isArray(record.profiles) && record.profiles.length
-    ? record.profiles.map((profile) => normalizeApiProfile(profile))
+  const normalizedProfiles = Array.isArray(record.profiles) && record.profiles.length
+    ? record.profiles
+        .filter((profile) => !profile || typeof profile !== 'object' || (profile as Record<string, unknown>).provider !== 'fal')
+        .map((profile) => normalizeApiProfile(profile))
     : [legacyProfile]
+  const profiles = normalizedProfiles.length ? normalizedProfiles : [legacyProfile]
   const activeProfileId = typeof record.activeProfileId === 'string' && profiles.some((p) => p.id === record.activeProfileId)
     ? record.activeProfileId
     : profiles[0].id

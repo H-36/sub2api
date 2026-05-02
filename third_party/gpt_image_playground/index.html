@@ -7,10 +7,82 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="GPT Image" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="./pwa-icon.svg" />
     <link rel="icon" href="./pwa-icon.svg" type="image/svg+xml" />
     <title>GPT Image Playground</title>
+    <style data-sub2api-image-playground-theme>
+      html,
+      body,
+      #root {
+        background-color: var(--sub2api-image-playground-bg, #f9fafb) !important;
+      }
+
+      html.dark {
+        color-scheme: dark;
+      }
+
+      html:not(.dark) {
+        color-scheme: light;
+      }
+    </style>
+    <script data-sub2api-image-playground-theme nonce="__CSP_NONCE_VALUE__">
+      (() => {
+        const MESSAGE_TYPE = 'sub2api:image-playground-theme'
+        const DEFAULT_LIGHT_BG = '#f9fafb'
+        const DEFAULT_DARK_BG = '#020617'
+
+        const normalizeTheme = (value) => value === 'dark' ? 'dark' : 'light'
+        const isCssColor = (value) => {
+          if (!value || typeof value !== 'string' || value.length > 80) return false
+          if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function') {
+            return CSS.supports('color', value)
+          }
+          const probe = document.createElement('span')
+          probe.style.color = value
+          return probe.style.color !== ''
+        }
+        const normalizeBackground = (value, theme) => (
+          isCssColor(value) ? value : theme === 'dark' ? DEFAULT_DARK_BG : DEFAULT_LIGHT_BG
+        )
+        const applyTheme = (payload = {}) => {
+          const theme = normalizeTheme(payload.theme)
+          const background = normalizeBackground(payload.background, theme)
+
+          document.documentElement.classList.toggle('dark', theme === 'dark')
+          document.documentElement.style.setProperty('--sub2api-image-playground-bg', background)
+
+          const themeColor = document.querySelector('meta[name="theme-color"]')
+          if (themeColor) themeColor.setAttribute('content', background)
+          if (document.body) {
+            document.body.style.setProperty('background-color', background, 'important')
+          }
+
+          const root = document.getElementById('root')
+          if (root) {
+            root.style.setProperty('background-color', background, 'important')
+          }
+        }
+
+        const params = new URLSearchParams(window.location.search)
+        let latestTheme = {
+          theme: normalizeTheme(params.get('theme')),
+          background: params.get('sub2apiBg') || ''
+        }
+
+        applyTheme(latestTheme)
+        document.addEventListener('DOMContentLoaded', () => applyTheme(latestTheme), { once: true })
+
+        window.addEventListener('message', (event) => {
+          if (event.origin !== window.location.origin) return
+          const data = event.data
+          if (!data || data.type !== MESSAGE_TYPE) return
+          latestTheme = {
+            theme: data.theme,
+            background: data.background
+          }
+          applyTheme(latestTheme)
+        })
+      })()
+    </script>
   </head>
   <body class="bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen">
     <div id="root"></div>

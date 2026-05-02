@@ -21,8 +21,13 @@ html {
 
 body {
   padding: 0;
+  background-color: var(--sub2api-image-playground-bg, #f9fafb) !important;
   -webkit-user-select: none;
   user-select: none;
+}
+
+#root {
+  background-color: var(--sub2api-image-playground-bg, #f9fafb) !important;
 }
 
 input,
@@ -59,10 +64,8 @@ body.drag-selecting * {
   user-select: none !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  * {
-    scrollbar-color: #3f3f46 transparent;
-  }
+.dark * {
+  scrollbar-color: #3f3f46 transparent;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -80,10 +83,8 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb { background: #3f3f46; }
-  ::-webkit-scrollbar-thumb:hover { background: #52525b; }
-}
+.dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
 @keyframes pulse-border {
   0%, 100% { border-color: #3b82f6; }

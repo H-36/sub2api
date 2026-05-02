@@ -59,6 +59,7 @@ function buildIframeSrc() {
     apiUrl: `${window.location.origin}/v1`,
     provider: 'openai',
     apiMode: 'images',
+    sub2apiImagePlayground: '1',
     theme: pageTheme.value,
     sub2apiBg: pageBackground.value
   })

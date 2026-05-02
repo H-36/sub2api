@@ -19,13 +19,111 @@ import {
 } from './imageApiShared'
 
 const PROMPT_REWRITE_GUARD_PREFIX = 'Use the following text as the complete prompt. Do not rewrite it:'
+const SUB2API_IMAGE_PLAYGROUND_QUERY = 'sub2apiImagePlayground'
+const SUB2API_IMAGE_PLAYGROUND_HEADER = 'X-Sub2API-Image-Playground'
+
+const isEmbeddedSub2APIImagePlayground = (() => {
+  if (typeof window === 'undefined') return false
+  try {
+    return new URLSearchParams(window.location.search).get(SUB2API_IMAGE_PLAYGROUND_QUERY) === '1'
+  } catch {
+    return false
+  }
+})()
+
+function isSameOriginApiBaseUrl(baseUrl: string): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return new URL(baseUrl, window.location.href).origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
+function shouldUseSub2APIImagePlaygroundSSE(profile: ApiProfile): boolean {
+  return isEmbeddedSub2APIImagePlayground && isSameOriginApiBaseUrl(profile.baseUrl)
+}
 
 function createRequestHeaders(profile: ApiProfile): Record<string, string> {
-  return {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${profile.apiKey}`,
     'Cache-Control': 'no-store, no-cache, max-age=0',
     Pragma: 'no-cache',
   }
+  if (shouldUseSub2APIImagePlaygroundSSE(profile)) {
+    headers.Accept = 'text/event-stream, application/json'
+    headers[SUB2API_IMAGE_PLAYGROUND_HEADER] = '1'
+  }
+  return headers
+}
+
+function readSSEDataValue(line: string): string {
+  const value = line.slice(5)
+  return value.startsWith(' ') ? value.slice(1) : value
+}
+
+function getSSEErrorMessage(data: string): string {
+  try {
+    const payload = JSON.parse(data) as Record<string, unknown>
+    const error = payload.error && typeof payload.error === 'object'
+      ? payload.error as Record<string, unknown>
+      : null
+    if (typeof error?.message === 'string' && error.message.trim()) return error.message
+    if (typeof payload.message === 'string' && payload.message.trim()) return payload.message
+  } catch {
+    /* fall through */
+  }
+  return data.trim() || '接口返回错误'
+}
+
+function parseImagePlaygroundSSE(text: string): ImageApiResponse {
+  let eventName = 'message'
+  let dataLines: string[] = []
+  let donePayload: ImageApiResponse | null = null
+
+  const dispatch = () => {
+    if (!dataLines.length) {
+      eventName = 'message'
+      return
+    }
+    const data = dataLines.join('\n')
+    if (eventName === 'done') {
+      donePayload = JSON.parse(data) as ImageApiResponse
+    } else if (eventName === 'error') {
+      throw new Error(getSSEErrorMessage(data))
+    }
+    eventName = 'message'
+    dataLines = []
+  }
+
+  for (const rawLine of `${text}\n`.split(/\r?\n/)) {
+    const line = rawLine.trimEnd()
+    if (line === '') {
+      dispatch()
+      continue
+    }
+    if (line.startsWith(':')) continue
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim()
+      continue
+    }
+    if (line.startsWith('data:')) {
+      dataLines.push(readSSEDataValue(line))
+    }
+  }
+
+  if (!donePayload) {
+    throw new Error('接口未返回完成事件')
+  }
+  return donePayload
+}
+
+async function readImagesApiPayload(response: Response): Promise<ImageApiResponse> {
+  const contentType = response.headers.get('content-type') || ''
+  if (!contentType.toLowerCase().includes('text/event-stream')) {
+    return await response.json() as ImageApiResponse
+  }
+  return parseImagePlaygroundSSE(await response.text())
 }
 
 function createResponsesImageTool(
@@ -261,7 +359,7 @@ async function callImagesApiSingle(opts: CallApiOptions, profile: ApiProfile): P
       throw new Error(await getApiErrorMessage(response))
     }
 
-    const payload = await response.json() as ImageApiResponse
+    const payload = await readImagesApiPayload(response)
     const data = payload.data
     if (!Array.isArray(data) || !data.length) {
       throw new Error('接口未返回图片数据')

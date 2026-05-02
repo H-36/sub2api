@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -16,6 +17,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -39,6 +41,9 @@ const (
 	openAIImageMaxDownloadBytes    = 20 << 20 // 20MB per image download
 	openAIImageMaxUploadPartSize   = 20 << 20 // 20MB per multipart upload part
 	openAIImagesResponsesMainModel = "gpt-5.4-mini"
+
+	openAIImagesPlaygroundHeader          = "X-Sub2API-Image-Playground"
+	openAIImagesPlaygroundSSEPingInterval = 20 * time.Second
 )
 
 type OpenAIImagesCapability string
@@ -109,6 +114,174 @@ func (r *OpenAIImagesRequest) StickySessionSeed() string {
 		seed += "|body=" + r.bodyHash
 	}
 	return seed
+}
+
+type openAIImagesPlaygroundSSEWriter struct {
+	c       *gin.Context
+	flusher http.Flusher
+	mu      sync.Mutex
+	done    chan struct{}
+	once    sync.Once
+	final   bool
+}
+
+func NewOpenAIImagesPlaygroundSSEWriter(c *gin.Context, parsed *OpenAIImagesRequest) (*openAIImagesPlaygroundSSEWriter, error) {
+	if !ShouldUseOpenAIImagesPlaygroundSSE(c, parsed) {
+		return nil, nil
+	}
+	return StartOpenAIImagesPlaygroundSSE(c)
+}
+
+func ShouldUseOpenAIImagesPlaygroundSSE(c *gin.Context, parsed *OpenAIImagesRequest) bool {
+	if c == nil || parsed == nil || parsed.Stream {
+		return false
+	}
+	value := strings.TrimSpace(c.GetHeader(openAIImagesPlaygroundHeader))
+	if value == "" {
+		return false
+	}
+	switch strings.ToLower(value) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsOpenAIImagesPlaygroundSSEStarted(c *gin.Context) bool {
+	if c == nil || c.Writer == nil {
+		return false
+	}
+	contentType := strings.ToLower(strings.TrimSpace(c.Writer.Header().Get("Content-Type")))
+	return strings.HasPrefix(contentType, "text/event-stream") && c.Writer.Written()
+}
+
+func StartOpenAIImagesPlaygroundSSE(c *gin.Context) (*openAIImagesPlaygroundSSEWriter, error) {
+	if c == nil || c.Writer == nil {
+		return nil, fmt.Errorf("missing response writer")
+	}
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		return nil, fmt.Errorf("streaming is not supported by response writer")
+	}
+
+	header := c.Writer.Header()
+	header.Set("Content-Type", "text/event-stream; charset=utf-8")
+	header.Set("Cache-Control", "no-cache, no-transform")
+	header.Set("Connection", "keep-alive")
+	header.Set("X-Accel-Buffering", "no")
+	if !c.Writer.Written() {
+		c.Status(http.StatusOK)
+		c.Writer.WriteHeaderNow()
+	}
+
+	writer := &openAIImagesPlaygroundSSEWriter{
+		c:       c,
+		flusher: flusher,
+		done:    make(chan struct{}),
+	}
+	if err := writer.WritePing(); err != nil {
+		writer.Stop()
+		return nil, err
+	}
+	go writer.pingLoop(c.Request.Context())
+	return writer, nil
+}
+
+func (w *openAIImagesPlaygroundSSEWriter) WriteInvalidRequest(err error) {
+	if w == nil || err == nil {
+		return
+	}
+	_ = w.WriteError("invalid_request_error", err.Error())
+}
+
+func (w *openAIImagesPlaygroundSSEWriter) WriteUpstreamError(err error) {
+	if w == nil || err == nil {
+		return
+	}
+	_ = w.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
+}
+
+func (w *openAIImagesPlaygroundSSEWriter) pingLoop(ctx context.Context) {
+	ticker := time.NewTicker(openAIImagesPlaygroundSSEPingInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-w.done:
+			return
+		case <-ticker.C:
+			if err := w.WritePing(); err != nil {
+				return
+			}
+		}
+	}
+}
+
+func (w *openAIImagesPlaygroundSSEWriter) Stop() {
+	if w == nil {
+		return
+	}
+	w.once.Do(func() {
+		close(w.done)
+	})
+}
+
+func (w *openAIImagesPlaygroundSSEWriter) WritePing() error {
+	if w == nil {
+		return nil
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.final {
+		return nil
+	}
+	if _, err := fmt.Fprint(w.c.Writer, ": ping\n\n"); err != nil {
+		return err
+	}
+	w.flusher.Flush()
+	return nil
+}
+
+func (w *openAIImagesPlaygroundSSEWriter) WriteDoneJSON(payload []byte) error {
+	if w == nil {
+		return nil
+	}
+	w.Stop()
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.final = true
+	if _, err := fmt.Fprintf(w.c.Writer, "event: done\ndata: %s\n\n", payload); err != nil {
+		return err
+	}
+	w.flusher.Flush()
+	return nil
+}
+
+func (w *openAIImagesPlaygroundSSEWriter) WriteError(errType, message string) error {
+	if w == nil {
+		return nil
+	}
+	if strings.TrimSpace(errType) == "" {
+		errType = "upstream_error"
+	}
+	if strings.TrimSpace(message) == "" {
+		message = "Upstream request failed"
+	}
+	body := []byte(`{"error":{"type":"","message":""}}`)
+	body, _ = sjson.SetBytes(body, "error.type", errType)
+	body, _ = sjson.SetBytes(body, "error.message", message)
+
+	w.Stop()
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.final = true
+	if _, err := fmt.Fprintf(w.c.Writer, "event: error\ndata: %s\n\n", body); err != nil {
+		return err
+	}
+	w.flusher.Flush()
+	return nil
 }
 
 func (s *OpenAIGatewayService) ParseOpenAIImagesRequest(c *gin.Context, body []byte) (*OpenAIImagesRequest, error) {
@@ -508,15 +681,25 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	channelMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
+	playgroundSSE, err := NewOpenAIImagesPlaygroundSSEWriter(c, parsed)
+	if err != nil {
+		return nil, err
+	}
+	if playgroundSSE != nil {
+		defer playgroundSSE.Stop()
+	}
+
 	requestModel := strings.TrimSpace(parsed.Model)
 	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
 		requestModel = mapped
 	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
+		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	upstreamModel := account.GetMappedModel(requestModel)
 	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
+		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	logger.LegacyPrintf(
@@ -529,6 +712,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	)
 	forwardBody, forwardContentType, err := rewriteOpenAIImagesModel(body, parsed.ContentType, upstreamModel)
 	if err != nil {
+		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	if !parsed.Multipart {
@@ -537,10 +721,12 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
+		playgroundSSE.WriteUpstreamError(err)
 		return nil, err
 	}
 	upstreamReq, err := s.buildOpenAIImagesRequest(ctx, c, account, forwardBody, forwardContentType, token, parsed.Endpoint)
 	if err != nil {
+		playgroundSSE.WriteUpstreamError(err)
 		return nil, err
 	}
 
@@ -563,6 +749,9 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			Kind:               "request_error",
 			Message:            safeErr,
 		})
+		if playgroundSSE != nil {
+			_ = playgroundSSE.WriteError("upstream_error", safeErr)
+		}
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
 	if resp.StatusCode >= 400 {
@@ -589,6 +778,20 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 				RetryableOnSameAccount: account.IsPoolMode() && isPoolModeRetryableStatus(resp.StatusCode),
 			}
 		}
+		if playgroundSSE != nil {
+			usage, imageCount, handleErr := s.handleOpenAIImagesPlaygroundSSENonStreamingResponse(resp, c, playgroundSSE)
+			return &OpenAIForwardResult{
+				RequestID:       resp.Header.Get("x-request-id"),
+				Usage:           usage,
+				Model:           requestModel,
+				UpstreamModel:   upstreamModel,
+				Stream:          false,
+				ResponseHeaders: resp.Header.Clone(),
+				Duration:        time.Since(startTime),
+				ImageCount:      imageCount,
+				ImageSize:       parsed.SizeTier,
+			}, handleErr
+		}
 		return s.handleErrorResponse(ctx, resp, c, account, forwardBody)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -604,6 +807,15 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		usage = streamUsage
 		imageCount = streamCount
 		firstTokenMs = ttft
+	} else if playgroundSSE != nil {
+		nonStreamUsage, nonStreamCount, err := s.handleOpenAIImagesPlaygroundSSENonStreamingResponse(resp, c, playgroundSSE)
+		if err != nil {
+			return nil, err
+		}
+		usage = nonStreamUsage
+		if nonStreamCount > 0 {
+			imageCount = nonStreamCount
+		}
 	} else {
 		nonStreamUsage, nonStreamCount, err := s.handleOpenAIImagesNonStreamingResponse(resp, c)
 		if err != nil {
@@ -785,6 +997,47 @@ func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(resp *http
 	}
 	c.Data(resp.StatusCode, contentType, body)
 
+	usage, _ := extractOpenAIUsageFromJSONBytes(body)
+	return usage, extractOpenAIImageCountFromJSONBytes(body), nil
+}
+
+func (s *OpenAIGatewayService) handleOpenAIImagesPlaygroundSSENonStreamingResponse(resp *http.Response, c *gin.Context, writer *openAIImagesPlaygroundSSEWriter) (OpenAIUsage, int, error) {
+	if writer == nil {
+		return s.handleOpenAIImagesNonStreamingResponse(resp, c)
+	}
+	body, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
+	if err != nil {
+		if errors.Is(err, ErrUpstreamResponseBodyTooLarge) {
+			setOpsUpstreamError(c, http.StatusBadGateway, "upstream response too large", "")
+			_ = writer.WriteError("upstream_error", "Upstream response too large")
+		} else {
+			_ = writer.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
+		}
+		return OpenAIUsage{}, 0, err
+	}
+
+	if resp.StatusCode >= 400 {
+		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
+		upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
+		if upstreamMsg == "" {
+			upstreamMsg = "Upstream request failed"
+		}
+		upstreamDetail := ""
+		if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
+			maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
+			if maxBytes <= 0 {
+				maxBytes = 2048
+			}
+			upstreamDetail = truncateString(string(body), maxBytes)
+		}
+		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
+		_ = writer.WriteError("upstream_error", upstreamMsg)
+		return OpenAIUsage{}, 0, fmt.Errorf("upstream error: %d message=%s", resp.StatusCode, upstreamMsg)
+	}
+
+	if err := writer.WriteDoneJSON(body); err != nil {
+		return OpenAIUsage{}, 0, err
+	}
 	usage, _ := extractOpenAIUsageFromJSONBytes(body)
 	return usage, extractOpenAIImageCountFromJSONBytes(body), nil
 }
