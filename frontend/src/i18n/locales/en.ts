@@ -349,6 +349,10 @@ export default {
     usage: 'Usage',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',
+    affiliateManagement: 'Affiliate Rebates',
+    affiliateInviteRecords: 'Invite Records',
+    affiliateRebateRecords: 'Rebate Records',
+    affiliateTransferRecords: 'Transfer Records',
     profile: 'Profile',
     users: 'Users',
     groups: 'Groups',
@@ -881,6 +885,8 @@ export default {
     perMillionTokens: '/ 1M tokens',
     unitPrice: 'Per-request price',
     imageUnitPrice: 'Per-image price',
+    imageTotalPrice: 'Image total price',
+    imageCount: 'Image count',
     cacheRead: 'Read',
     cacheWrite: 'Write',
     serviceTier: 'Service tier',
@@ -1088,6 +1094,7 @@ export default {
     historyWillAppear: 'Your redemption history will appear here',
     balanceAddedRedeem: 'Balance Added (Redeem)',
     welfareAddedRedeem: 'Welfare Claimed',
+    balanceAddedAffiliate: 'Balance Added (Affiliate Transfer)',
     balanceAddedAdmin: 'Balance Added (Admin)',
     balanceDeductedAdmin: 'Balance Deducted (Admin)',
     concurrencyAddedRedeem: 'Concurrency Added (Redeem)',
@@ -1677,6 +1684,49 @@ export default {
       }
     },
 
+    affiliates: {
+      invitesDescription: 'View site-wide inviter and invitee relationships',
+      rebatesDescription: 'View recharge orders that generated affiliate rebates',
+      transfersDescription: 'View affiliate quota transfers into account balance',
+      errors: {
+        loadFailed: 'Failed to load affiliate records'
+      },
+      records: {
+        search: 'Search',
+        searchPlaceholder: 'Email, username, user ID, or order number',
+        startAt: 'Start date',
+        endAt: 'End date',
+        inviter: 'Inviter',
+        invitee: 'Invitee',
+        user: 'User',
+        affCode: 'Invite Code',
+        order: 'Order',
+        totalRebate: 'Total Rebate',
+        orderAmount: 'Top-up Amount',
+        payAmount: 'Paid Amount',
+        rebateAmount: 'Rebate Amount',
+        paymentType: 'Payment Method',
+        orderStatus: 'Order Status',
+        transferAmount: 'Transfer Amount',
+        balanceAfter: 'Balance After',
+        availableQuotaAfter: 'Available After',
+        frozenQuotaAfter: 'Frozen After',
+        historyQuotaAfter: 'Historical Rebate After',
+        invitedAt: 'Invited At',
+        rebatedAt: 'Rebated At',
+        transferredAt: 'Transferred At'
+      },
+      overview: {
+        title: 'Affiliate User Overview',
+        affCode: 'Invite Code',
+        rebateRate: 'Rebate Rate',
+        invitedCount: 'Invited Users',
+        rebatedInviteeCount: 'Rebated Invitees',
+        availableQuota: 'Available Quota',
+        historyQuota: 'Historical Rebate'
+      }
+    },
+
     // Users
     users: {
       title: 'User Management',
@@ -1829,6 +1879,7 @@ export default {
       noBalanceHistory: 'No records found for this user',
       allTypes: 'All Types',
       typeBalance: 'Balance (Redeem)',
+      typeAffiliateBalance: 'Balance (Affiliate Transfer)',
       typeAdminBalance: 'Balance (Admin)',
       typeConcurrency: 'Concurrency (Redeem)',
       typeAdminConcurrency: 'Concurrency (Admin)',
@@ -2043,7 +2094,13 @@ export default {
       },
       imagePricing: {
         title: 'Image Generation Pricing',
-        description: 'Configure pricing for image generation models. Leave empty to use default prices.'
+        description: 'Configure image generation access and base image prices. Leave empty to use default prices.',
+        allowImageGeneration: 'Allow image generation for this group',
+        independentMultiplier: 'Use independent image multiplier',
+        imageMultiplier: 'Image multiplier',
+        modeHint: 'By default, image billing uses image price × current effective group multiplier. Independent mode uses image price × image multiplier.',
+        finalPricePreview: 'Final per-image price preview',
+        notConfigured: 'Not configured'
       },
       claudeCode: {
         title: 'Claude Code Client Restriction',
@@ -5553,6 +5610,16 @@ export default {
         cooldownMinutesHint: 'Duration to pause account scheduling (1-120 minutes)',
         saved: 'Overload cooldown settings saved',
         saveFailed: 'Failed to save overload cooldown settings'
+      },
+      rateLimit429Cooldown: {
+        title: '429 Default Cooldown',
+        description: 'Configure the default account cooldown when upstream returns 429 without an explicit reset time',
+        enabled: 'Enable 429 Default Cooldown',
+        enabledHint: 'Pause account scheduling when a 429 has no reset time, then auto-recover after cooldown',
+        cooldownSeconds: 'Cooldown Duration (seconds)',
+        cooldownSecondsHint: 'Default cooldown duration (1-7200 seconds); explicit upstream reset times still take precedence',
+        saved: '429 default cooldown settings saved',
+        saveFailed: 'Failed to save 429 default cooldown settings'
       },
       streamTimeout: {
         title: 'Stream Timeout Handling',

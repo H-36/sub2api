@@ -12,3 +12,6 @@ dist/
 # 忽略缓存
 .cache/
 .vite/
+
+# 忽略嵌入的 Image Playground 构建产物
+public/image-playground-app/
