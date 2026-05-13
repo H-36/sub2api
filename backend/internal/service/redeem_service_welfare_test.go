@@ -235,6 +235,14 @@ func (s *welfareUserRepoStub) UpdateConcurrency(context.Context, int64, int) err
 	panic("unexpected UpdateConcurrency call")
 }
 
+func (s *welfareUserRepoStub) BatchSetConcurrency(context.Context, []int64, int) (int, error) {
+	panic("unexpected BatchSetConcurrency call")
+}
+
+func (s *welfareUserRepoStub) BatchAddConcurrency(context.Context, []int64, int) (int, error) {
+	panic("unexpected BatchAddConcurrency call")
+}
+
 func (s *welfareUserRepoStub) ExistsByEmail(context.Context, string) (bool, error) {
 	panic("unexpected ExistsByEmail call")
 }
@@ -300,7 +308,7 @@ func TestRedeemService_WelfareRedeemFlow(t *testing.T) {
 			3: {ID: 3, Email: "welfare-3@test.com", Role: service.RoleUser, Status: service.StatusActive},
 		},
 	}
-	redeemSvc := service.NewRedeemService(redeemRepo, userRepo, nil, nil, nil, client, nil)
+	redeemSvc := service.NewRedeemService(redeemRepo, userRepo, nil, nil, nil, client, nil, nil)
 
 	code := &service.RedeemCode{
 		Code:      "233",
