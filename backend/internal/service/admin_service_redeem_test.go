@@ -43,6 +43,10 @@ func (s *redeemRepoStubForGenerate) Delete(context.Context, int64) error {
 	panic("unexpected Delete call")
 }
 
+func (s *redeemRepoStubForGenerate) BatchUpdate(context.Context, []int64, RedeemCodeBatchUpdateFields) (int64, error) {
+	panic("unexpected BatchUpdate call")
+}
+
 func (s *redeemRepoStubForGenerate) Use(context.Context, int64, int64) error {
 	panic("unexpected Use call")
 }

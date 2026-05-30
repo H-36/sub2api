@@ -97,6 +97,10 @@ func (s *welfareRedeemRepoStub) Delete(context.Context, int64) error {
 	panic("unexpected Delete call")
 }
 
+func (s *welfareRedeemRepoStub) BatchUpdate(context.Context, []int64, service.RedeemCodeBatchUpdateFields) (int64, error) {
+	panic("unexpected BatchUpdate call")
+}
+
 func (s *welfareRedeemRepoStub) Use(context.Context, int64, int64) error {
 	panic("unexpected Use call")
 }

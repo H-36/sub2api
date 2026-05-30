@@ -157,6 +157,20 @@ func (_c *RedeemCodeCreate) SetNillableCreatedAt(v *time.Time) *RedeemCodeCreate
 	return _c
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_c *RedeemCodeCreate) SetExpiresAt(v time.Time) *RedeemCodeCreate {
+	_c.mutation.SetExpiresAt(v)
+	return _c
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableExpiresAt(v *time.Time) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetExpiresAt(*v)
+	}
+	return _c
+}
+
 // SetGroupID sets the "group_id" field.
 func (_c *RedeemCodeCreate) SetGroupID(v int64) *RedeemCodeCreate {
 	_c.mutation.SetGroupID(v)
@@ -392,6 +406,10 @@ func (_c *RedeemCodeCreate) createSpec() (*RedeemCode, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(redeemcode.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.ExpiresAt(); ok {
+		_spec.SetField(redeemcode.FieldExpiresAt, field.TypeTime, value)
+		_node.ExpiresAt = &value
 	}
 	if value, ok := _c.mutation.ValidityDays(); ok {
 		_spec.SetField(redeemcode.FieldValidityDays, field.TypeInt, value)
@@ -643,6 +661,24 @@ func (u *RedeemCodeUpsert) AddClaimedCount(v int) *RedeemCodeUpsert {
 	return u
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (u *RedeemCodeUpsert) SetExpiresAt(v time.Time) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldExpiresAt, v)
+	return u
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateExpiresAt() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldExpiresAt)
+	return u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *RedeemCodeUpsert) ClearExpiresAt() *RedeemCodeUpsert {
+	u.SetNull(redeemcode.FieldExpiresAt)
+	return u
+}
+
 // SetGroupID sets the "group_id" field.
 func (u *RedeemCodeUpsert) SetGroupID(v int64) *RedeemCodeUpsert {
 	u.Set(redeemcode.FieldGroupID, v)
@@ -889,6 +925,27 @@ func (u *RedeemCodeUpsertOne) AddClaimedCount(v int) *RedeemCodeUpsertOne {
 func (u *RedeemCodeUpsertOne) UpdateClaimedCount() *RedeemCodeUpsertOne {
 	return u.Update(func(s *RedeemCodeUpsert) {
 		s.UpdateClaimedCount()
+	})
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (u *RedeemCodeUpsertOne) SetExpiresAt(v time.Time) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetExpiresAt(v)
+	})
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateExpiresAt() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateExpiresAt()
+	})
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *RedeemCodeUpsertOne) ClearExpiresAt() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearExpiresAt()
 	})
 }
 
@@ -1310,6 +1367,27 @@ func (u *RedeemCodeUpsertBulk) AddClaimedCount(v int) *RedeemCodeUpsertBulk {
 func (u *RedeemCodeUpsertBulk) UpdateClaimedCount() *RedeemCodeUpsertBulk {
 	return u.Update(func(s *RedeemCodeUpsert) {
 		s.UpdateClaimedCount()
+	})
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (u *RedeemCodeUpsertBulk) SetExpiresAt(v time.Time) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetExpiresAt(v)
+	})
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateExpiresAt() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateExpiresAt()
+	})
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *RedeemCodeUpsertBulk) ClearExpiresAt() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearExpiresAt()
 	})
 }
 
