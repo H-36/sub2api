@@ -418,7 +418,7 @@
                   </div>
                   <pre
                     v-if="expandedResultIds.has(result.id)"
-                    class="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-red-50 p-2 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-300"
+                    class="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded-sm bg-red-50 p-2 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-300"
                   >{{ result.error_message }}</pre>
                 </div>
                 <div v-else-if="result.response_text" class="mt-2">
@@ -438,7 +438,7 @@
                   </div>
                   <pre
                     v-if="expandedResultIds.has(result.id)"
-                    class="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-gray-100 p-2 text-xs text-gray-700 dark:bg-dark-800 dark:text-gray-300"
+                    class="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded-sm bg-gray-100 p-2 text-xs text-gray-700 dark:bg-dark-800 dark:text-gray-300"
                   >{{ result.response_text }}</pre>
                 </div>
               </div>

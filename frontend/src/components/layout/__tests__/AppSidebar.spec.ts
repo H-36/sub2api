@@ -21,7 +21,10 @@ describe('AppSidebar custom SVG styles', () => {
 
 describe('AppSidebar header styles', () => {
   it('does not clip the version badge dropdown', () => {
-    const sidebarHeaderBlockMatch = styleSource.match(/\.sidebar-header\s*\{[\s\S]*?\n {2}\}/)
+    // Tailwind v4: 组件类已从 @layer components 的 .sidebar-header 迁移为顶层 @utility sidebar-header
+    const sidebarHeaderBlockMatch = styleSource.match(
+      /(?:\.sidebar-header|@utility sidebar-header)\s*\{[\s\S]*?\n\}/
+    )
     const sidebarBrandBlockMatch = componentSource.match(/\.sidebar-brand\s*\{[\s\S]*?\n\}/)
 
     expect(sidebarHeaderBlockMatch).not.toBeNull()

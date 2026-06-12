@@ -35,12 +35,12 @@ const BORDER_DEFAULT = 'border-gray-200 dark:border-dark-700'
 
 // ── Accent bar (gradient) ───────────────────────────────────────────
 const ACCENT_BAR: Record<Platform, string> = {
-  anthropic: 'bg-gradient-to-r from-orange-400 to-orange-500',
-  openai: 'bg-gradient-to-r from-emerald-400 to-emerald-500',
-  antigravity: 'bg-gradient-to-r from-purple-400 to-purple-500',
-  gemini: 'bg-gradient-to-r from-blue-400 to-blue-500',
+  anthropic: 'bg-linear-to-r from-orange-400 to-orange-500',
+  openai: 'bg-linear-to-r from-emerald-400 to-emerald-500',
+  antigravity: 'bg-linear-to-r from-purple-400 to-purple-500',
+  gemini: 'bg-linear-to-r from-blue-400 to-blue-500',
 }
-const ACCENT_BAR_DEFAULT = 'bg-gradient-to-r from-primary-400 to-primary-500'
+const ACCENT_BAR_DEFAULT = 'bg-linear-to-r from-primary-400 to-primary-500'
 
 // ── Text (price, icon) ─────────────────────────────────────────────
 const TEXT: Record<Platform, string> = {

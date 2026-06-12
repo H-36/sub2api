@@ -12,7 +12,7 @@
           <article
             v-for="card in summaryCards"
             :key="card.key"
-            class="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.45)] backdrop-blur dark:border-white/10 dark:bg-dark-900/85"
+            class="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.45)] backdrop-blur-sm dark:border-white/10 dark:bg-dark-900/85"
           >
             <div :class="['absolute inset-x-0 top-0 h-1.5', card.accent]"></div>
             <div class="flex items-start justify-between gap-4">
@@ -32,7 +32,7 @@
         </section>
 
         <section
-          class="overflow-hidden rounded-[32px] border border-white/70 bg-white/90 shadow-[0_22px_60px_-35px_rgba(15,23,42,0.45)] backdrop-blur dark:border-white/10 dark:bg-dark-900/85"
+          class="overflow-hidden rounded-[32px] border border-white/70 bg-white/90 shadow-[0_22px_60px_-35px_rgba(15,23,42,0.45)] backdrop-blur-sm dark:border-white/10 dark:bg-dark-900/85"
         >
           <div class="border-b border-gray-100/80 px-5 py-4 dark:border-dark-700/80">
             <div class="flex flex-wrap items-center justify-between gap-3">
@@ -63,7 +63,7 @@
                 'group rounded-[28px] border p-4 text-left transition-all duration-200',
                 selectedPlatform === platform.platform
                   ? 'border-primary-300 bg-primary-50 shadow-[0_16px_36px_-28px_rgba(14,165,233,0.9)] dark:border-primary-500/50 dark:bg-primary-500/10'
-                  : 'border-gray-200/80 bg-gradient-to-br from-white to-gray-50 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-[0_16px_36px_-30px_rgba(15,23,42,0.45)] dark:border-dark-700 dark:from-dark-900 dark:to-dark-800 dark:hover:border-dark-500'
+                  : 'border-gray-200/80 bg-linear-to-br from-white to-gray-50 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-[0_16px_36px_-30px_rgba(15,23,42,0.45)] dark:border-dark-700 dark:from-dark-900 dark:to-dark-800 dark:hover:border-dark-500'
               ]"
               @click="togglePlatformFilter(platform.platform)"
             >
@@ -219,13 +219,13 @@
       <Transition name="fade">
         <div
           v-if="selectedGroup"
-          class="fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-[2px]"
+          class="fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-xs"
           @click="closeDrawer"
         >
           <Transition name="slide-panel">
             <aside
               v-if="selectedGroup"
-              class="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col overflow-hidden border-l border-white/60 bg-white/95 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.6)] backdrop-blur dark:border-white/10 dark:bg-dark-950/95"
+              class="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col overflow-hidden border-l border-white/60 bg-white/95 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.6)] backdrop-blur-sm dark:border-white/10 dark:bg-dark-950/95"
               @click.stop
             >
               <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
@@ -296,7 +296,7 @@
                   <article
                     v-for="model in selectedGroup.models"
                     :key="model.name"
-                    class="rounded-[26px] border border-gray-200/80 bg-gradient-to-br from-white via-white to-gray-50 p-4 shadow-[0_18px_42px_-34px_rgba(15,23,42,0.65)] dark:border-dark-700 dark:from-dark-900 dark:via-dark-900 dark:to-dark-800"
+                    class="rounded-[26px] border border-gray-200/80 bg-linear-to-br from-white via-white to-gray-50 p-4 shadow-[0_18px_42px_-34px_rgba(15,23,42,0.65)] dark:border-dark-700 dark:from-dark-900 dark:via-dark-900 dark:to-dark-800"
                   >
                     <div class="flex items-start justify-between gap-3">
                       <h3
@@ -402,7 +402,7 @@ const summaryCards = computed(() => {
       label: t('modelPlaza.summaryPlatforms'),
       value: summary?.platform_count ?? 0,
       icon: 'grid' as const,
-      accent: 'bg-gradient-to-r from-sky-400 to-cyan-400',
+      accent: 'bg-linear-to-r from-sky-400 to-cyan-400',
       iconBg: 'bg-sky-50 dark:bg-sky-500/10',
       iconColor: 'text-sky-600 dark:text-sky-300'
     },
@@ -411,7 +411,7 @@ const summaryCards = computed(() => {
       label: t('modelPlaza.summaryGroups'),
       value: summary?.group_count ?? 0,
       icon: 'database' as const,
-      accent: 'bg-gradient-to-r from-emerald-400 to-teal-400',
+      accent: 'bg-linear-to-r from-emerald-400 to-teal-400',
       iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
       iconColor: 'text-emerald-600 dark:text-emerald-300'
     },
@@ -420,7 +420,7 @@ const summaryCards = computed(() => {
       label: t('modelPlaza.summaryModels'),
       value: summary?.model_count ?? 0,
       icon: 'cube' as const,
-      accent: 'bg-gradient-to-r from-amber-400 to-orange-400',
+      accent: 'bg-linear-to-r from-amber-400 to-orange-400',
       iconBg: 'bg-amber-50 dark:bg-amber-500/10',
       iconColor: 'text-amber-600 dark:text-amber-300'
     }
