@@ -1,68 +1,104 @@
 @import 'tailwindcss';
 
+/* ============ 展示字体 Archivo（变量字重 600–800，仅西文/数字） ============ */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+  src: url('/fonts/archivo-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+  src: url('/fonts/archivo-latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-primary-50: #f0fdfa;
-  --color-primary-100: #ccfbf1;
-  --color-primary-200: #99f6e4;
-  --color-primary-300: #5eead4;
-  --color-primary-400: #2dd4bf;
-  --color-primary-500: #14b8a6;
-  --color-primary-600: #0d9488;
-  --color-primary-700: #0f766e;
-  --color-primary-800: #115e59;
-  --color-primary-900: #134e4a;
-  --color-primary-950: #042f2e;
+  /* 主色 primary：樱花玫红（Tailwind pink 系，500 为锚点） */
+  --color-primary-50: #fdf2f8;
+  --color-primary-100: #fce7f3;
+  --color-primary-200: #fbcfe8;
+  --color-primary-300: #f9a8d4;
+  --color-primary-400: #f472b6;
+  --color-primary-500: #ec4899;
+  --color-primary-600: #db2777;
+  --color-primary-700: #be185d;
+  --color-primary-800: #9d174d;
+  --color-primary-900: #831843;
+  --color-primary-950: #500724;
 
-  --color-accent-50: #f8fafc;
-  --color-accent-100: #f1f5f9;
-  --color-accent-200: #e2e8f0;
-  --color-accent-300: #cbd5e1;
-  --color-accent-400: #94a3b8;
-  --color-accent-500: #64748b;
-  --color-accent-600: #475569;
-  --color-accent-700: #334155;
-  --color-accent-800: #1e293b;
-  --color-accent-900: #0f172a;
-  --color-accent-950: #020617;
+  /* 撞色 accent：青（Tailwind cyan 系，仅作点缀） */
+  --color-accent-50: #ecfeff;
+  --color-accent-100: #cffafe;
+  --color-accent-200: #a5f3fc;
+  --color-accent-300: #67e8f9;
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #06b6d4;
+  --color-accent-600: #0891b2;
+  --color-accent-700: #0e7490;
+  --color-accent-800: #155e75;
+  --color-accent-900: #164e63;
+  --color-accent-950: #083344;
 
-  --color-dark-50: #f8fafc;
-  --color-dark-100: #f1f5f9;
-  --color-dark-200: #e2e8f0;
-  --color-dark-300: #cbd5e1;
-  --color-dark-400: #94a3b8;
-  --color-dark-500: #64748b;
-  --color-dark-600: #475569;
-  --color-dark-700: #334155;
-  --color-dark-800: #1e293b;
-  --color-dark-900: #0f172a;
-  --color-dark-950: #020617;
+  /* 暗色 dark：暖紫墨色夜空 */
+  --color-dark-50: #f7f7f9;
+  --color-dark-100: #efeef3;
+  --color-dark-200: #dddce4;
+  --color-dark-300: #c2c0cd;
+  --color-dark-400: #918ea3;
+  --color-dark-500: #67637a;
+  --color-dark-600: #4d4960;
+  --color-dark-700: #383549;
+  --color-dark-800: #262333;
+  --color-dark-900: #1a1825;
+  --color-dark-950: #121019;
 
   --font-sans:
     system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
     Helvetica Neue, Arial, PingFang SC, Hiragino Sans GB, Microsoft YaHei,
     sans-serif;
+  --font-display:
+    'Archivo', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --shadow-glass-sm: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-glow: 0 0 20px rgba(20, 184, 166, 0.25);
-  --shadow-glow-lg: 0 0 40px rgba(20, 184, 166, 0.35);
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 10px 40px rgba(0, 0, 0, 0.08);
-  --shadow-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --shadow-glass: 0 8px 32px rgba(18, 16, 25, 0.06);
+  --shadow-glass-sm: 0 4px 16px rgba(18, 16, 25, 0.05);
+  --shadow-glow: 0 0 20px rgba(236, 72, 153, 0.25);
+  --shadow-glow-lg: 0 0 40px rgba(236, 72, 153, 0.35);
+  --shadow-card: 0 2px 12px rgba(18, 16, 25, 0.06);
+  --shadow-card-hover: 0 12px 32px rgba(18, 16, 25, 0.12);
+  --shadow-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 
   --background-image-gradient-radial: radial-gradient(var(--tw-gradient-stops));
   --background-image-gradient-primary: linear-gradient(
+    90deg,
+    #ec4899 0%,
+    #8b5cf6 55%,
+    #22d3ee 100%
+  );
+  --background-image-gradient-banner: linear-gradient(
     135deg,
-    #14b8a6 0%,
-    #0d9488 100%
+    rgba(236, 72, 153, 0.85) 0%,
+    rgba(139, 92, 246, 0.85) 100%
   );
   --background-image-gradient-dark: linear-gradient(
     135deg,
-    #1e293b 0%,
-    #0f172a 100%
+    #262333 0%,
+    #1a1825 100%
   );
   --background-image-gradient-glass: linear-gradient(
     135deg,
@@ -70,15 +106,20 @@
     rgba(255, 255, 255, 0.05) 100%
   );
   --background-image-mesh-gradient:
-    radial-gradient(at 40% 20%, rgba(20, 184, 166, 0.12) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, rgba(20, 184, 166, 0.08) 0px, transparent 50%);
+    radial-gradient(at 20% 0%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
+    radial-gradient(at 90% 90%, rgba(34, 211, 238, 0.08) 0px, transparent 50%),
+    radial-gradient(at 10% 60%, rgba(236, 72, 153, 0.06) 0px, transparent 50%);
+  --background-image-mesh-fallback:
+    radial-gradient(at 20% 0%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
+    radial-gradient(at 90% 90%, rgba(34, 211, 238, 0.08) 0px, transparent 50%);
 
   --animate-fade-in: fadeIn 0.3s ease-out;
+  --animate-fade-up: fadeUp 0.45s cubic-bezier(0.21, 0.6, 0.35, 1) both;
   --animate-slide-up: slideUp 0.3s ease-out;
   --animate-slide-down: slideDown 0.3s ease-out;
   --animate-slide-in-right: slideInRight 0.3s ease-out;
   --animate-scale-in: scaleIn 0.2s ease-out;
+  --animate-pop-in: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-glow: glow 2s ease-in-out infinite alternate;
@@ -93,6 +134,26 @@
     }
     100% {
       opacity: 1;
+    }
+  }
+  @keyframes fadeUp {
+    0% {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes popIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
     }
   }
   @keyframes slideUp {
@@ -145,10 +206,10 @@
   }
   @keyframes glow {
     0% {
-      box-shadow: 0 0 20px rgba(20, 184, 166, 0.25);
+      box-shadow: 0 0 20px rgba(236, 72, 153, 0.25);
     }
     100% {
-      box-shadow: 0 0 30px rgba(20, 184, 166, 0.4);
+      box-shadow: 0 0 30px rgba(236, 72, 153, 0.4);
     }
   }
 }
@@ -182,9 +243,9 @@
 }
 
 @utility btn-primary {
-  @apply bg-linear-to-r from-primary-500 to-primary-600;
+  @apply bg-primary-500;
   @apply text-white shadow-md shadow-primary-500/25;
-  @apply hover:from-primary-600 hover:to-primary-700 hover:shadow-lg hover:shadow-primary-500/30;
+  @apply hover:bg-primary-600 hover:shadow-lg hover:shadow-primary-500/30;
   @apply dark:shadow-primary-500/20;
 }
 
@@ -202,22 +263,22 @@
 }
 
 @utility btn-danger {
-  @apply bg-linear-to-r from-red-500 to-red-600;
-  @apply text-white shadow-md shadow-red-500/25;
-  @apply hover:from-red-600 hover:to-red-700 hover:shadow-lg hover:shadow-red-500/30;
+  @apply bg-rose-500;
+  @apply text-white shadow-md shadow-rose-500/25;
+  @apply hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-500/30;
 }
 
 @utility btn-success {
-  @apply bg-linear-to-r from-emerald-500 to-emerald-600;
+  @apply bg-emerald-500;
   @apply text-white shadow-md shadow-emerald-500/25;
-  @apply hover:from-emerald-600 hover:to-emerald-700 hover:shadow-lg hover:shadow-emerald-500/30;
+  @apply hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/30;
   @apply dark:shadow-emerald-500/20;
 }
 
 @utility btn-warning {
-  @apply bg-linear-to-r from-amber-500 to-amber-600;
+  @apply bg-amber-500;
   @apply text-white shadow-md shadow-amber-500/25;
-  @apply hover:from-amber-600 hover:to-amber-700 hover:shadow-lg hover:shadow-amber-500/30;
+  @apply hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-500/30;
   @apply dark:shadow-amber-500/20;
 }
 
@@ -294,20 +355,33 @@
 }
 
 @utility glass {
-  /* ============ 玻璃效果 ============ */
-  @apply bg-white/80 backdrop-blur-xl dark:bg-dark-800/80;
+  /* ============ 玻璃效果（兼容旧用法，= glass-panel） ============ */
+  @apply bg-white/75 backdrop-blur-xl dark:bg-dark-900/85;
+}
 
-  /* 玻璃效果 */
-  @apply bg-white/80 backdrop-blur-xl dark:bg-dark-800/80;
+/* ============ 玻璃四级体系（透明度与 blur 严格挂钩） ============ */
+@utility glass-panel {
+  /* 大容器专用：页面主卡 / dialog / 浮层 */
+  @apply rounded-2xl border border-white/60 bg-white/75 shadow-card backdrop-blur-xl;
+  @apply dark:border-white/10 dark:bg-dark-900/85;
 }
 
 @utility glass-card {
-  @apply bg-white/70 dark:bg-dark-800/70;
-  @apply backdrop-blur-xl;
-  @apply rounded-2xl;
-  @apply border border-white/20 dark:border-dark-700/50;
-  @apply shadow-glass;
-  @apply transition-all duration-300;
+  /* 小卡默认：统计卡 / 矩阵卡 / 列表项（无 blur） */
+  @apply rounded-2xl border border-white/60 bg-white/[0.88] shadow-card;
+  @apply dark:border-white/10 dark:bg-dark-900/[0.92];
+}
+
+@utility glass-solid {
+  /* 数据密集页：表格 / ops / usage（无 blur，近实底） */
+  @apply rounded-2xl border border-white/70 bg-white/95 shadow-card;
+  @apply dark:border-white/10 dark:bg-dark-900/95;
+}
+
+@utility glass-nav {
+  /* 导航：header / sidebar / sheet 抽屉 */
+  @apply border-white/50 bg-white/70 backdrop-blur-xl;
+  @apply dark:border-white/10 dark:bg-dark-950/80;
 }
 
 @utility card {
@@ -320,7 +394,8 @@
 }
 
 @utility card-hover {
-  @apply hover:-translate-y-0.5 hover:shadow-card-hover;
+  @apply transition-all duration-200;
+  @apply hover:-translate-y-1 hover:shadow-card-hover;
   @apply hover:border-gray-200 dark:hover:border-dark-600;
 }
 
@@ -934,6 +1009,23 @@
 @utility text-gradient {
   /* 文字渐变 */
   @apply bg-linear-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent;
+}
+
+@utility heading-bar {
+  /* 区块标题左侧渐变圆头色条（博客主题惯用） */
+  @apply relative pl-3;
+
+  &::before {
+    content: '';
+    @apply absolute left-0 top-1/2 h-[1em] w-1 -translate-y-1/2 rounded-full;
+    background-image: var(--background-image-gradient-primary);
+  }
+}
+
+@utility deco-text {
+  /* 标题旁大写英文装饰微字 "// DASHBOARD" */
+  @apply pointer-events-none select-none font-display text-[10px] font-bold uppercase tracking-[0.2em];
+  @apply text-gray-400/70 dark:text-dark-500;
 }
 
 @utility scrollbar-hide {
