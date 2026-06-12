@@ -524,7 +524,12 @@ watch(
 }
 
 .markdown-body li::marker {
-  @apply text-blue-600 dark:text-blue-400;
+  @apply text-blue-600;
+}
+
+/* 伪元素不能接 dark: 变体（生成非法 ::marker:is()），显式 .dark 前缀 */
+.dark .markdown-body li::marker {
+  color: #60a5fa; /* blue-400 */
 }
 
 .markdown-body blockquote {
@@ -533,7 +538,11 @@ watch(
 
 .markdown-body blockquote::before {
   content: '"';
-  @apply absolute -left-1 top-0 text-5xl font-serif text-blue-500/20 dark:text-blue-400/20;
+  @apply absolute -left-1 top-0 text-5xl font-serif text-blue-500/20;
+}
+
+.dark .markdown-body blockquote::before {
+  color: rgba(96, 165, 250, 0.2); /* blue-400/20 */
 }
 
 .markdown-body code {

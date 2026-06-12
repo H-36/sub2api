@@ -26,6 +26,76 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============ shadcn 语义变量层（组件只消费这一层；亮/暗在此切换） ============ */
+:root {
+  --background: #f7f7f9;
+  --foreground: #1a1825;
+  --card: rgba(255, 255, 255, 0.88);
+  --card-foreground: #1a1825;
+  --popover: rgba(255, 255, 255, 0.92);
+  --popover-foreground: #1a1825;
+  --primary: #ec4899;
+  --primary-foreground: #ffffff;
+  --secondary: #fdf2f8;
+  --secondary-foreground: #be185d;
+  --muted: rgba(239, 238, 243, 0.6);
+  --muted-foreground: #67637a;
+  /* 语义 accent = 菜单/列表 hover 浅底（非品牌青色，青色走 accent-* 色阶） */
+  --accent: #fdf2f8;
+  --accent-foreground: #be185d;
+  --destructive: #f43f5e;
+  --destructive-foreground: #ffffff;
+  --border: rgba(221, 220, 228, 0.8);
+  --input: #dddce4;
+  --ring: rgba(236, 72, 153, 0.4);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #121019;
+  --foreground: #efeef3;
+  --card: rgba(26, 24, 37, 0.92);
+  --card-foreground: #efeef3;
+  --popover: rgba(26, 24, 37, 0.95);
+  --popover-foreground: #efeef3;
+  --primary: #ec4899;
+  --primary-foreground: #ffffff;
+  --secondary: #262333;
+  --secondary-foreground: #f9a8d4;
+  --muted: rgba(38, 35, 51, 0.6);
+  --muted-foreground: #918ea3;
+  --accent: rgba(236, 72, 153, 0.12);
+  --accent-foreground: #f9a8d4;
+  --destructive: #f43f5e;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: rgba(244, 114, 182, 0.4);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  /* 裸 primary/accent（bg-primary 等）= shadcn 语义层；带色阶（primary-500）= 品牌层，二者共存 */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
 @theme {
   /* 主色 primary：樱花玫红（Tailwind pink 系，500 为锚点） */
   --color-primary-50: #fdf2f8;
@@ -1091,17 +1161,30 @@
     transition: background-color 0.2s ease;
   }
 
+  /* 伪元素选择器不能接 dark 变体（会生成非法的 ::x:is()），暗色用 .dark 前缀显式书写 */
   *:hover::-webkit-scrollbar-thumb {
-    @apply bg-gray-300/50 dark:bg-dark-600/50;
+    @apply bg-gray-300/50;
+  }
+
+  .dark *:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(77, 73, 96, 0.5); /* dark-600/50 */
   }
 
   *:hover::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-dark-500;
+    @apply bg-gray-400;
+  }
+
+  .dark *:hover::-webkit-scrollbar-thumb:hover {
+    background-color: #67637a; /* dark-500 */
   }
 
   /* 选中文本样式 */
   ::selection {
-    @apply bg-primary-500/20 text-primary-900 dark:text-primary-100;
+    @apply bg-primary-500/20 text-primary-900;
+  }
+
+  .dark ::selection {
+    color: #fce7f3; /* primary-100 */
   }
 
 
