@@ -42,6 +42,10 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			return
 		}
 
+		// 同 api_key_auth.go：早退中断前也写入 Ops 回退 key，便于错误日志展示
+		// user/group/platform。
+		SetOpsFallbackAPIKey(c, apiKey)
+
 		if !apiKey.IsActive() {
 			abortWithGoogleError(c, 401, "API key is disabled")
 			return
@@ -105,7 +109,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				subscriptionService.DoWindowMaintenance(&maintenanceCopy)
 			}
 		} else {
-			if apiKey.User.Balance <= 0 {
+			if apiKeyBalanceBelowAuthThreshold(apiKey.User.Balance, cfg) {
 				abortWithGoogleError(c, 403, "Insufficient account balance")
 				return
 			}

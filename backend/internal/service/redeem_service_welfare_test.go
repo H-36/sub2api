@@ -174,6 +174,10 @@ func (s *welfareUserRepoStub) GetByID(_ context.Context, id int64) (*service.Use
 	return cloneUser(user), nil
 }
 
+func (s *welfareUserRepoStub) GetByIDIncludeDeleted(ctx context.Context, id int64) (*service.User, error) {
+	return s.GetByID(ctx, id)
+}
+
 func (s *welfareUserRepoStub) GetByEmail(context.Context, string) (*service.User, error) {
 	panic("unexpected GetByEmail call")
 }
