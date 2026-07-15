@@ -221,6 +221,7 @@ func (s *FrontendServer) serveStaticPath(c *gin.Context, resolvedPath string) {
 		return
 	}
 
+	applyStaticAssetCacheHeaders(c.Writer.Header(), resolvedPath)
 	req := c.Request.Clone(c.Request.Context())
 	req.URL.Path = "/" + strings.TrimPrefix(resolvedPath, "/")
 	s.fileServer.ServeHTTP(c.Writer, req)
@@ -354,9 +355,12 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		strings.HasPrefix(trimmed, "/antigravity/") ||
 		strings.HasPrefix(trimmed, "/setup/") ||
 		trimmed == "/health" ||
+		trimmed == "/models" ||
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/") ||
-		strings.HasPrefix(trimmed, "/images/")
+		trimmed == "/alpha/search" ||
+		strings.HasPrefix(trimmed, "/images/") ||
+		strings.HasPrefix(trimmed, "/videos/")
 }
 
 func isDocsRoute(requestPath string) bool {
@@ -434,6 +438,7 @@ func serveResolvedPath(fileServer http.Handler, fsys fs.FS, c *gin.Context, reso
 		return
 	}
 
+	applyStaticAssetCacheHeaders(c.Writer.Header(), resolvedPath)
 	req := c.Request.Clone(c.Request.Context())
 	req.URL.Path = "/" + strings.TrimPrefix(resolvedPath, "/")
 	fileServer.ServeHTTP(c.Writer, req)
