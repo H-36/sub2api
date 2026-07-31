@@ -166,6 +166,10 @@ func (s *welfareUserRepoStub) Create(context.Context, *service.User) error {
 	panic("unexpected Create call")
 }
 
+func (s *welfareUserRepoStub) CreateWithEmailAliasGuard(context.Context, *service.User) error {
+	panic("unexpected CreateWithEmailAliasGuard call")
+}
+
 func (s *welfareUserRepoStub) GetByID(_ context.Context, id int64) (*service.User, error) {
 	user, ok := s.users[id]
 	if !ok {
@@ -186,7 +190,7 @@ func (s *welfareUserRepoStub) GetFirstAdmin(context.Context) (*service.User, err
 	panic("unexpected GetFirstAdmin call")
 }
 
-func (s *welfareUserRepoStub) Update(context.Context, *service.User) error {
+func (s *welfareUserRepoStub) Update(context.Context, *service.User, service.UserUpdateFields) error {
 	panic("unexpected Update call")
 }
 
@@ -239,6 +243,32 @@ func (s *welfareUserRepoStub) DeductBalance(context.Context, int64, float64) err
 	panic("unexpected DeductBalance call")
 }
 
+func (s *welfareUserRepoStub) AdjustBalance(_ context.Context, id int64, delta float64) (service.BalanceChange, error) {
+	user, ok := s.users[id]
+	if !ok {
+		return service.BalanceChange{}, service.ErrUserNotFound
+	}
+	change := service.BalanceChange{Old: user.Balance, New: user.Balance + delta}
+	if change.New < 0 {
+		return change, service.ErrBalanceNegative
+	}
+	user.Balance = change.New
+	return change, nil
+}
+
+func (s *welfareUserRepoStub) SetBalance(_ context.Context, id int64, value float64) (service.BalanceChange, error) {
+	user, ok := s.users[id]
+	if !ok {
+		return service.BalanceChange{}, service.ErrUserNotFound
+	}
+	change := service.BalanceChange{Old: user.Balance, New: value}
+	if value < 0 {
+		return change, service.ErrBalanceNegative
+	}
+	user.Balance = value
+	return change, nil
+}
+
 func (s *welfareUserRepoStub) UpdateConcurrency(context.Context, int64, int) error {
 	panic("unexpected UpdateConcurrency call")
 }
@@ -251,8 +281,16 @@ func (s *welfareUserRepoStub) BatchAddConcurrency(context.Context, []int64, int)
 	panic("unexpected BatchAddConcurrency call")
 }
 
+func (s *welfareUserRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
+	panic("unexpected BatchUpdateLimits call")
+}
+
 func (s *welfareUserRepoStub) ExistsByEmail(context.Context, string) (bool, error) {
 	panic("unexpected ExistsByEmail call")
+}
+
+func (s *welfareUserRepoStub) ExistsByEmailAlias(context.Context, string) (bool, error) {
+	panic("unexpected ExistsByEmailAlias call")
 }
 
 func (s *welfareUserRepoStub) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {

@@ -1,110 +1,145 @@
+//go:build unit
+
 package handler
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
-type modelPlazaGetterStub struct {
-	response *service.ModelPlazaResponse
-	err      error
+func plazaGroups() []service.PlazaGroup {
+	return []service.PlazaGroup{
+		{ID: 1, Name: "public-standard", Platform: "anthropic", SubscriptionType: "standard", RateMultiplier: 1},
+		{ID: 2, Name: "exclusive-a", Platform: "anthropic", IsExclusive: true, RateMultiplier: 0.5},
+		{ID: 3, Name: "public-subscription", Platform: "openai", SubscriptionType: "subscription", RateMultiplier: 1},
+		{ID: 4, Name: "exclusive-b", Platform: "openai", IsExclusive: true, RateMultiplier: 0.8},
+	}
 }
 
-func (s modelPlazaGetterStub) Get(_ context.Context) (*service.ModelPlazaResponse, error) {
-	return s.response, s.err
+func TestFilterPlazaVisibleGroups_AnonymousSeesOnlyNonExclusive(t *testing.T) {
+	// 匿名(allowedExclusive == nil):仅非专属分组;订阅型公开分组照常可见(橱窗语义)。
+	visible := filterPlazaVisibleGroups(plazaGroups(), nil)
+	require.Len(t, visible, 2)
+	ids := []int64{visible[0].ID, visible[1].ID}
+	require.ElementsMatch(t, []int64{1, 3}, ids)
 }
 
-func TestModelPlazaHandler_Get_Success(t *testing.T) {
-	t.Parallel()
+func TestFilterPlazaVisibleGroups_AuthedSeesGrantedExclusive(t *testing.T) {
+	// 登录:非专属 + 授权的专属;未授权的专属仍不可见。
+	allowed := map[int64]struct{}{2: {}}
+	visible := filterPlazaVisibleGroups(plazaGroups(), allowed)
+	require.Len(t, visible, 3)
+	ids := make([]int64, 0, len(visible))
+	for _, g := range visible {
+		ids = append(ids, g.ID)
+	}
+	require.ElementsMatch(t, []int64{1, 2, 3}, ids)
+}
 
+func TestFilterPlazaVisibleGroups_AuthedEmptySetSeesNoExclusive(t *testing.T) {
+	// 登录但无任何专属授权(空集合,非 nil):与匿名同样只见非专属,
+	// 但语义区分要保持——空集合不能被当作 nil 匿名分支。
+	visible := filterPlazaVisibleGroups(plazaGroups(), map[int64]struct{}{})
+	require.Len(t, visible, 2)
+}
+
+func TestModelPlazaHandler_NilSettingServiceFailsClosed404(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
+	h := &ModelPlazaHandler{} // settingService == nil → fail-closed
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/model-plaza", nil)
 
-	handler := &ModelPlazaHandler{
-		modelPlazaService: modelPlazaGetterStub{
-			response: &service.ModelPlazaResponse{
-				Summary: service.ModelPlazaSummary{
-					PlatformCount: 1,
-					GroupCount:    1,
-					ModelCount:    2,
-				},
-				Platforms: []service.ModelPlazaPlatform{
-					{
-						Platform:   service.PlatformOpenAI,
-						Label:      "OpenAI",
-						GroupCount: 1,
-						Groups: []service.ModelPlazaGroup{
-							{
-								ID:             1,
-								Name:           "Pro",
-								Platform:       service.PlatformOpenAI,
-								RateMultiplier: 1.5,
-								ModelCount:     2,
-							},
-						},
-					},
-				},
+	h.Get(c)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
+	g := service.PlazaGroup{
+		ID: 2, Name: "vip", Description: "d", Platform: "anthropic",
+		SubscriptionType: "standard", RateMultiplier: 1, IsExclusive: true,
+		Models: []service.PlazaModel{{
+			Name:     "claude-sonnet",
+			Platform: "anthropic",
+			Pricing: &service.ChannelModelPricing{
+				BillingMode:     service.BillingModeToken,
+				InputPrice:      testPtr(3e-6),
+				CacheWritePrice: testPtr(1e-6),
 			},
-		},
+			OfficialPricing: &service.PlazaOfficialPricing{
+				InputPrice:     testPtr(3e-6),
+				CacheReadPrice: testPtr(3e-7),
+			},
+		}},
 	}
 
-	handler.Get(c)
+	// 有专属倍率:user_rate_multiplier 序列化输出
+	dto := toModelPlazaGroupDTO(&g, map[int64]float64{2: 0.5})
+	raw, err := json.Marshal(dto)
+	require.NoError(t, err)
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(raw, &decoded))
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", recorder.Code)
+	for _, key := range []string{
+		"id", "name", "description", "platform", "subscription_type",
+		"rate_multiplier", "user_rate_multiplier", "is_exclusive", "models", "model_count",
+		"peak_rate_enabled", "peak_start", "peak_end", "peak_rate_multiplier",
+	} {
+		_, exists := decoded[key]
+		require.Truef(t, exists, "plaza group DTO must expose %q", key)
 	}
+	require.InDelta(t, 0.5, decoded["user_rate_multiplier"].(float64), 1e-9)
+	require.Equal(t, float64(1), decoded["model_count"])
 
-	var payload response.Response
-	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("unmarshal response: %v", err)
-	}
+	// 模型条目:pricing + official_pricing 并存;official 缺失字段输出 null 而非省略
+	models := decoded["models"].([]any)
+	require.Len(t, models, 1)
+	model := models[0].(map[string]any)
+	require.Contains(t, model, "pricing")
+	require.Contains(t, model, "official_pricing")
+	require.Equal(t, "token", model["billing_mode"])
+	require.InDelta(t, 3.0, model["input_price_1m"].(float64), 1e-9)
+	require.InDelta(t, 1.0, model["cache_write_price_1m"].(float64), 1e-9)
+	official := model["official_pricing"].(map[string]any)
+	require.Contains(t, official, "input_price")
+	require.Contains(t, official, "cache_read_price")
+	_, has1h := official["cache_write_1h_price"]
+	require.False(t, has1h, "1h 缓存写价为 nil 时应 omitempty")
 
-	if payload.Code != 0 {
-		t.Fatalf("expected response code 0, got %d", payload.Code)
-	}
-
-	data, ok := payload.Data.(map[string]any)
-	if !ok {
-		t.Fatalf("expected response data object, got %T", payload.Data)
-	}
-
-	summary, ok := data["summary"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected summary object, got %T", data["summary"])
-	}
-
-	if summary["platform_count"] != float64(1) {
-		t.Fatalf("expected platform_count 1, got %#v", summary["platform_count"])
-	}
+	// 无专属倍率:user_rate_multiplier 整个字段省略
+	dtoNoRate := toModelPlazaGroupDTO(&g, nil)
+	rawNoRate, err := json.Marshal(dtoNoRate)
+	require.NoError(t, err)
+	var decodedNoRate map[string]any
+	require.NoError(t, json.Unmarshal(rawNoRate, &decodedNoRate))
+	_, hasRate := decodedNoRate["user_rate_multiplier"]
+	require.False(t, hasRate, "无专属倍率时 user_rate_multiplier 应 omitempty")
 }
 
-func TestModelPlazaHandler_Get_Error(t *testing.T) {
-	t.Parallel()
-
-	gin.SetMode(gin.TestMode)
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/model-plaza", nil)
-
-	handler := &ModelPlazaHandler{
-		modelPlazaService: modelPlazaGetterStub{
-			err: errors.New("boom"),
-		},
+func TestBuildLegacyModelPlazaView_ProvidesSummaryAndPlatforms(t *testing.T) {
+	groups := []modelPlazaGroup{
+		{ID: 2, Name: "b", Platform: service.PlatformOpenAI, ModelCount: 3},
+		{ID: 1, Name: "a", Platform: service.PlatformOpenAI, ModelCount: 2},
 	}
 
-	handler.Get(c)
+	platforms, summary := buildLegacyModelPlazaView(groups)
 
-	if recorder.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status 500, got %d", recorder.Code)
-	}
+	require.Equal(t, modelPlazaSummary{PlatformCount: 1, GroupCount: 2, ModelCount: 5}, summary)
+	require.Len(t, platforms, 1)
+	require.Equal(t, "OpenAI", platforms[0].Label)
+	require.Equal(t, int64(1), platforms[0].Groups[0].ID)
 }
+
+func TestToModelPlazaOfficialPricing_NilPassthrough(t *testing.T) {
+	require.Nil(t, toModelPlazaOfficialPricing(nil))
+}
+
+func testPtr(v float64) *float64 { return &v }
