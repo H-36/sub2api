@@ -177,7 +177,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/model-plaza',
-    name: 'ModelPlazaPublic',
+    name: 'ModelPlaza',
     component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
       requiresAuth: false,
@@ -185,7 +185,6 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'modelPlaza.title'
     }
   },
-
 
   // ==================== User Routes ====================
   {
@@ -214,18 +213,6 @@ const routes: RouteRecordRaw[] = [
       title: 'API Keys',
       titleKey: 'keys.title',
       descriptionKey: 'keys.description'
-    }
-  },
-  {
-    path: '/models',
-    name: 'UserModelPlaza',
-    component: () => import('@/views/ModelPlazaView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Model Plaza',
-      titleKey: 'modelPlaza.title',
-      descriptionKey: 'modelPlaza.description'
     }
   },
   {

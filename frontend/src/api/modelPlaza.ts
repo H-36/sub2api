@@ -1,19 +1,11 @@
 /**
  * Model Plaza API（公开端点，可匿名访问）
- *
- * 上游新视图以分组为中心：分组信息 + 模型渠道定价 + LiteLLM 官方参考价。
- * 本地历史 /models 视图仍使用 summary/platforms 与扁平 1M 单价字段，后端会同时返回，
- * 因此这里保留兼容字段，避免旧入口在合并后空白。
+ * 以分组为中心的模型价目：分组信息 + 模型渠道定价 + LiteLLM 官方参考价。
+ * 带 token 请求时后端会额外返回专属分组与用户专属倍率。
  */
 
 import { apiClient } from './client'
 import type { UserSupportedModelPricing } from './channels'
-
-export interface ModelPlazaSummary {
-  platform_count: number
-  group_count: number
-  model_count: number
-}
 
 /** LiteLLM 官方参考价（USD per token，字段缺失 = 官方数据未覆盖）。 */
 export interface PlazaOfficialPricing {
@@ -26,21 +18,12 @@ export interface PlazaOfficialPricing {
   cache_read_price: number | null
 }
 
-export interface ModelPlazaModel {
+export interface PlazaModel {
   name: string
   platform: string
   pricing: UserSupportedModelPricing | null
   official_pricing: PlazaOfficialPricing | null
-
-  /** 兼容本地历史 /models 视图：计费模式与预换算的 $/1M token。 */
-  billing_mode: string
-  input_price_1m: number | null
-  output_price_1m: number | null
-  cache_write_price_1m: number | null
-  cache_read_price_1m: number | null
 }
-
-export type PlazaModel = ModelPlazaModel
 
 export interface ModelPlazaGroup {
   id: number
@@ -57,26 +40,13 @@ export interface ModelPlazaGroup {
   peak_end: string
   peak_rate_multiplier: number
   is_exclusive: boolean
-  /** 兼容本地历史 /models 视图。 */
-  model_count: number
-  models: ModelPlazaModel[]
-}
-
-export interface ModelPlazaPlatform {
-  platform: string
-  label: string
-  group_count: number
-  groups: ModelPlazaGroup[]
+  models: PlazaModel[]
 }
 
 export interface ModelPlazaResponse {
   /** 管理员配置的全局价格说明（Markdown）。 */
   description: string
   groups: ModelPlazaGroup[]
-
-  /** 兼容本地历史 /models 视图。 */
-  summary: ModelPlazaSummary
-  platforms: ModelPlazaPlatform[]
 }
 
 /** 获取模型广场数据。开关未启用时后端返回 404。 */

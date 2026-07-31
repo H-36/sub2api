@@ -640,15 +640,6 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	return svc
 }
 
-func ProvideModelPlazaService(
-	groupRepo GroupRepository,
-	channelService *ChannelService,
-	accountRepo AccountRepository,
-	billingService *BillingService,
-) *ModelPlazaService {
-	return NewModelPlazaService(groupRepo, channelService, accountRepo, billingService)
-}
-
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
 func ProvideBillingCacheService(
 	cache BillingCache,
@@ -738,7 +729,6 @@ var ProviderSet = wire.NewSet(
 	ProvideUpstreamBillingProbeService,
 	ProvideOllamaCloudUsageService,
 	ProvideSettingService,
-	ProvideModelPlazaService,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,

@@ -70,9 +70,8 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 			Name:     "claude-sonnet",
 			Platform: "anthropic",
 			Pricing: &service.ChannelModelPricing{
-				BillingMode:     service.BillingModeToken,
-				InputPrice:      testPtr(3e-6),
-				CacheWritePrice: testPtr(1e-6),
+				BillingMode: service.BillingModeToken,
+				InputPrice:  testPtr(3e-6),
 			},
 			OfficialPricing: &service.PlazaOfficialPricing{
 				InputPrice:     testPtr(3e-6),
@@ -90,14 +89,13 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 
 	for _, key := range []string{
 		"id", "name", "description", "platform", "subscription_type",
-		"rate_multiplier", "user_rate_multiplier", "is_exclusive", "models", "model_count",
+		"rate_multiplier", "user_rate_multiplier", "is_exclusive", "models",
 		"peak_rate_enabled", "peak_start", "peak_end", "peak_rate_multiplier",
 	} {
 		_, exists := decoded[key]
 		require.Truef(t, exists, "plaza group DTO must expose %q", key)
 	}
 	require.InDelta(t, 0.5, decoded["user_rate_multiplier"].(float64), 1e-9)
-	require.Equal(t, float64(1), decoded["model_count"])
 
 	// 模型条目:pricing + official_pricing 并存;official 缺失字段输出 null 而非省略
 	models := decoded["models"].([]any)
@@ -105,9 +103,6 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 	model := models[0].(map[string]any)
 	require.Contains(t, model, "pricing")
 	require.Contains(t, model, "official_pricing")
-	require.Equal(t, "token", model["billing_mode"])
-	require.InDelta(t, 3.0, model["input_price_1m"].(float64), 1e-9)
-	require.InDelta(t, 1.0, model["cache_write_price_1m"].(float64), 1e-9)
 	official := model["official_pricing"].(map[string]any)
 	require.Contains(t, official, "input_price")
 	require.Contains(t, official, "cache_read_price")
@@ -122,20 +117,6 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rawNoRate, &decodedNoRate))
 	_, hasRate := decodedNoRate["user_rate_multiplier"]
 	require.False(t, hasRate, "无专属倍率时 user_rate_multiplier 应 omitempty")
-}
-
-func TestBuildLegacyModelPlazaView_ProvidesSummaryAndPlatforms(t *testing.T) {
-	groups := []modelPlazaGroup{
-		{ID: 2, Name: "b", Platform: service.PlatformOpenAI, ModelCount: 3},
-		{ID: 1, Name: "a", Platform: service.PlatformOpenAI, ModelCount: 2},
-	}
-
-	platforms, summary := buildLegacyModelPlazaView(groups)
-
-	require.Equal(t, modelPlazaSummary{PlatformCount: 1, GroupCount: 2, ModelCount: 5}, summary)
-	require.Len(t, platforms, 1)
-	require.Equal(t, "OpenAI", platforms[0].Label)
-	require.Equal(t, int64(1), platforms[0].Groups[0].ID)
 }
 
 func TestToModelPlazaOfficialPricing_NilPassthrough(t *testing.T) {
