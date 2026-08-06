@@ -3,7 +3,8 @@
     <!-- Row 1: Platform + Type -->
     <div class="inline-flex items-center overflow-hidden rounded-md">
       <span :class="['inline-flex items-center gap-1 px-2 py-1', platformClass]">
-        <PlatformIcon :platform="platform" size="xs" />
+        <DeepSeekIcon v-if="isDeepSeekProvider" size="xs" />
+        <PlatformIcon v-else :platform="platform" size="xs" />
         <span>{{ platformLabel }}</span>
       </span>
       <span :class="['inline-flex items-center gap-1 px-1.5 py-1', typeClass]">
@@ -68,6 +69,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AccountPlatform, AccountType } from '@/types'
+import DeepSeekIcon from './DeepSeekIcon.vue'
 import GrokFreeIcon from './GrokFreeIcon.vue'
 import PlatformIcon from './PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -77,6 +79,7 @@ const { t } = useI18n()
 interface Props {
   platform: AccountPlatform
   type: AccountType
+  provider?: unknown
   authMode?: string
   planType?: string
   privacyMode?: string
@@ -85,7 +88,12 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const isDeepSeekProvider = computed(() =>
+  props.platform === 'openai' && props.provider === 'deepseek'
+)
+
 const platformLabel = computed(() => {
+  if (isDeepSeekProvider.value) return 'DeepSeek'
   if (props.platform === 'anthropic') return 'Anthropic'
   if (props.platform === 'openai') return 'OpenAI'
   if (props.platform === 'antigravity') return 'Antigravity'

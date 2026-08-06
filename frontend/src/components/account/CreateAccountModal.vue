@@ -86,10 +86,10 @@
           </button>
           <button
             type="button"
-            @click="form.platform = 'openai'"
+            @click="selectOpenAIPlatform"
             :class="[
               'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
-              form.platform === 'openai'
+              form.platform === 'openai' && !isDeepSeekProvider
                 ? 'bg-white text-green-600 shadow-sm dark:bg-dark-600 dark:text-green-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
             ]"
@@ -108,6 +108,20 @@
               />
             </svg>
             OpenAI
+          </button>
+          <button
+            type="button"
+            data-testid="platform-deepseek"
+            @click="selectDeepSeekPlatform"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              isDeepSeekProvider
+                ? 'bg-white text-blue-600 shadow-sm dark:bg-dark-600 dark:text-blue-400'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <DeepSeekIcon size="sm" />
+            DeepSeek
           </button>
           <button
             type="button"
@@ -296,8 +310,13 @@
       <!-- Account Type Selection (OpenAI) -->
       <div v-if="form.platform === 'openai'">
         <label class="input-label">{{ t('admin.accounts.accountType') }}</label>
-        <div class="mt-2 grid grid-cols-2 gap-3" data-tour="account-form-type">
+        <div
+          class="mt-2 grid gap-3"
+          :class="isDeepSeekProvider ? 'grid-cols-1' : 'grid-cols-2'"
+          data-tour="account-form-type"
+        >
           <button
+            v-if="!isDeepSeekProvider"
             type="button"
             @click="accountCategory = 'oauth-based'"
             :class="[
@@ -348,7 +367,6 @@
               <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.types.responsesApi') }}</span>
             </div>
           </button>
-
         </div>
       </div>
 
@@ -1120,9 +1138,12 @@
             v-model="apiKeyBaseUrl"
             type="text"
             class="input"
+            data-testid="api-key-base-url"
             :placeholder="
-              form.platform === 'openai'
-                ? 'https://api.openai.com'
+              isDeepSeekProvider
+                ? 'https://your-relay.example/v1'
+                : form.platform === 'openai'
+                  ? 'https://api.openai.com'
                 : form.platform === 'gemini'
                   ? 'https://generativelanguage.googleapis.com'
                   : form.platform === 'grok'
@@ -1185,7 +1206,7 @@
         </div>
 
         <!-- Model Restriction Section (Antigravity 已在上层条件排除) -->
-        <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
+        <div v-if="!isDeepSeekProvider" class="border-t border-gray-200 pt-4 dark:border-dark-600">
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
 
           <div
@@ -2767,7 +2788,7 @@
 
       <!-- OpenAI 自动透传开关（OAuth/API Key） -->
       <div
-        v-if="form.platform === 'openai'"
+        v-if="form.platform === 'openai' && !isDeepSeekProvider"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
@@ -3044,7 +3065,7 @@
 
       <!-- OpenAI APIKey Responses API support mode -->
       <div
-        v-if="form.platform === 'openai' && accountCategory === 'apikey'"
+        v-if="form.platform === 'openai' && accountCategory === 'apikey' && !isDeepSeekProvider"
         class="space-y-4 border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between gap-4">
@@ -3581,6 +3602,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
+import DeepSeekIcon from '@/components/common/DeepSeekIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
@@ -3641,6 +3663,7 @@ const oauthStepTitle = computed(() => {
 
 // Platform-specific hints for API Key type
 const baseUrlHint = computed(() => {
+  if (isDeepSeekProvider.value) return t('admin.accounts.deepseekBaseUrlHint')
   if (form.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   if (form.platform === 'grok') return ''
@@ -3728,6 +3751,7 @@ interface TempUnschedRuleForm {
 const step = ref(1)
 const submitting = ref(false)
 const accountCategory = ref<'oauth-based' | 'apikey' | 'bedrock' | 'service_account'>('oauth-based') // UI selection for account category
+const deepSeekSelected = ref(false)
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
@@ -4118,6 +4142,25 @@ const form = reactive({
   expires_at: null as number | null
 })
 
+const isDeepSeekProvider = computed(() =>
+  form.platform === 'openai' && deepSeekSelected.value
+)
+
+const selectDeepSeekPlatform = () => {
+  deepSeekSelected.value = true
+  form.platform = 'openai'
+  accountCategory.value = 'apikey'
+  apiKeyBaseUrl.value = ''
+}
+
+const selectOpenAIPlatform = () => {
+  deepSeekSelected.value = false
+  form.platform = 'openai'
+  apiKeyBaseUrl.value = 'https://api.openai.com'
+  openAIResponsesMode.value = 'auto'
+  openAIEndpointCapabilities.value = ['chat_completions', 'embeddings']
+}
+
 // Helper to check if current type needs OAuth flow
 const isOAuthFlow = computed(() => {
   // Antigravity upstream 类型不需要 OAuth 流程
@@ -4221,8 +4264,10 @@ watch(
   (newPlatform) => {
     // Reset base URL based on platform
     apiKeyBaseUrl.value =
-      (newPlatform === 'openai')
-        ? 'https://api.openai.com'
+      (newPlatform === 'openai' && isDeepSeekProvider.value)
+        ? ''
+        : (newPlatform === 'openai')
+          ? 'https://api.openai.com'
         : newPlatform === 'gemini'
           ? 'https://generativelanguage.googleapis.com'
           : newPlatform === 'grok'
@@ -4654,6 +4699,7 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
 // Methods
 const resetForm = () => {
   step.value = 1
+  deepSeekSelected.value = false
   form.name = ''
   form.notes = ''
   form.platform = 'anthropic'
@@ -4825,6 +4871,13 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
     extra.openai_responses_mode = openAIResponsesMode.value
   } else {
     delete extra.openai_responses_mode
+  }
+
+  if (isDeepSeekProvider.value) {
+    extra.provider = 'deepseek'
+    extra.openai_responses_mode = 'force_responses'
+    delete extra.openai_passthrough
+    delete extra.openai_oauth_passthrough
   }
 
   return Object.keys(extra).length > 0 ? extra : undefined
@@ -5102,6 +5155,10 @@ const handleSubmit = async () => {
     appStore.showError(t('admin.accounts.pleaseEnterApiKey'))
     return
   }
+  if (isDeepSeekProvider.value && !apiKeyBaseUrl.value.trim()) {
+    appStore.showError(t('admin.accounts.deepseekBaseUrlRequired'))
+    return
+  }
 
   // Determine default base URL based on platform
   const defaultBaseUrl =
@@ -5123,7 +5180,7 @@ const handleSubmit = async () => {
   }
 
   // Add model mapping if configured（OpenAI 开启自动透传时不应用）
-  if (!isOpenAIModelRestrictionDisabled.value) {
+  if (!isDeepSeekProvider.value && !isOpenAIModelRestrictionDisabled.value) {
     const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
     if (modelMapping) {
       credentials.model_mapping = modelMapping
@@ -5131,9 +5188,14 @@ const handleSubmit = async () => {
   }
   if (form.platform === 'openai') {
     applyOpenAIEndpointCapabilities(credentials)
-    const compactModelMapping = buildOpenAICompactModelMapping()
-    if (compactModelMapping) {
-      credentials.compact_model_mapping = compactModelMapping
+    if (isDeepSeekProvider.value) {
+      credentials.openai_capabilities = ['chat_completions']
+    }
+    if (!isDeepSeekProvider.value) {
+      const compactModelMapping = buildOpenAICompactModelMapping()
+      if (compactModelMapping) {
+        credentials.compact_model_mapping = compactModelMapping
+      }
     }
   }
 

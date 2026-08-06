@@ -791,6 +791,12 @@ func resolveRequestedModelInMapping(mapping map[string]string, requestedModel st
 // 请求卡死在该账号上、无法 failover 到真正支持该模型的 API Key 账号（#3662）。
 // 未知/自定义别名仍保持允许（兼容渠道级映射），见 isOpenAIOAuthServableModel。
 func (a *Account) IsModelSupported(requestedModel string) bool {
+	// DeepSeek 品牌账号当前仅调度 V4 Flash。
+	if a.IsDeepSeekAPIKeyAccount() {
+		model := strings.TrimSpace(requestedModel)
+		return model == "" || model == DeepSeekV4FlashModel
+	}
+
 	// 透传模式仅替换认证、模型语义完全交由上游决定，因此放行所有模型。
 	// 该短路必须在 model_mapping 判定之前：账号从"白名单模式"切换到透传后，
 	// credentials 里常残留旧的非空 model_mapping，若不在此放行，透传账号会被
@@ -822,6 +828,10 @@ func (a *Account) GetMappedModel(requestedModel string) string {
 // ResolveMappedModel 获取映射后的模型名，并返回是否命中了账号级映射。
 // matched=true 表示命中了精确映射或通配符映射，即使映射结果与原模型名相同。
 func (a *Account) ResolveMappedModel(requestedModel string) (mappedModel string, matched bool) {
+	if a.IsDeepSeekAPIKeyAccount() {
+		return requestedModel, false
+	}
+
 	mapping := a.GetModelMapping()
 	if len(mapping) == 0 {
 		return requestedModel, false

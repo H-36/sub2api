@@ -494,6 +494,8 @@ export default {
       apiKeyRequired: 'API Key *',
       apiKeyPlaceholder: 'sk-ant-api03-...',
       apiKeyHint: 'Your Claude Console API Key',
+      deepseekBaseUrlHint: 'Third-party endpoint for deepseek-v4-flash; the model name is forwarded unchanged.',
+      deepseekBaseUrlRequired: 'Enter the third-party DeepSeek Base URL',
       // OpenAI specific hints
       openai: {
         baseUrlHint: 'Leave default for official OpenAI API',
