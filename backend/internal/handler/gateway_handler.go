@@ -1099,8 +1099,8 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		return
 	}
 
-	// Get available models from account configurations for the selected group platform.
-	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
+	// DeepSeek groups use the existing OpenAI-compatible account pool.
+	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, service.GroupExecutionPlatform(platform))
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
 		fallbackModels := defaultModelIDsForPlatform(platform)
 		availableModels = filterModelsByCustomList(customModelsListSource(platform, availableModels, fallbackModels), fallbackModels, apiKey.Group.ModelsListConfig.Models)
@@ -1119,6 +1119,10 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 			"object": "list",
 			"data":   openai.DefaultModels,
 		})
+		return
+	}
+	if platform == service.PlatformDeepSeek {
+		writeOpenAIModelsList(c, []string{service.DeepSeekV4FlashModel})
 		return
 	}
 
@@ -1170,6 +1174,10 @@ func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *
 }
 
 func writeModelsList(c *gin.Context, platform string, modelIDs []string) {
+	if platform == service.PlatformDeepSeek {
+		writeOpenAIModelsList(c, modelIDs)
+		return
+	}
 	if platform == service.PlatformGrok {
 		writeGrokModelsList(c, modelIDs)
 		return
@@ -1345,6 +1353,8 @@ func defaultModelIDsForPlatform(platform string) []string {
 	switch platform {
 	case service.PlatformOpenAI:
 		return openai.DefaultModelIDs()
+	case service.PlatformDeepSeek:
+		return []string{service.DeepSeekV4FlashModel}
 	case service.PlatformGemini:
 		ids := make([]string, 0, len(geminicli.DefaultModels))
 		for _, model := range geminicli.DefaultModels {

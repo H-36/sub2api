@@ -96,6 +96,10 @@ const filteredGroups = computed(() => {
       result = result.filter(
         (g) => g.platform === 'antigravity' || g.platform === 'anthropic' || g.platform === 'gemini' || g.platform === 'composite'
       )
+    } else if (props.platform === 'openai' || props.platform === 'deepseek') {
+      result = result.filter(
+        (g) => g.platform === 'openai' || g.platform === 'deepseek' || g.platform === 'composite'
+      )
     } else {
       // 默认：只能选择同 platform 的分组；composite 分组可接收任意具体平台账号
       result = result.filter((g) => g.platform === props.platform || g.platform === 'composite')

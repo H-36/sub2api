@@ -8,8 +8,18 @@ import (
 
 const (
 	DeepSeekProvider     = "deepseek"
+	PlatformDeepSeek     = DeepSeekProvider
 	DeepSeekV4FlashModel = "deepseek-v4-flash"
 )
+
+// GroupExecutionPlatform keeps DeepSeek as a distinct group brand while
+// reusing the existing OpenAI-compatible execution path.
+func GroupExecutionPlatform(platform string) string {
+	if platform == PlatformDeepSeek {
+		return PlatformOpenAI
+	}
+	return platform
+}
 
 func (a *Account) IsDeepSeekAPIKeyAccount() bool {
 	return a != nil &&

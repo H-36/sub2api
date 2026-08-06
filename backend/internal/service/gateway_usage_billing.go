@@ -91,7 +91,7 @@ func PlatformFromAPIKey(apiKey *APIKey) string {
 	if apiKey == nil || apiKey.Group == nil {
 		return ""
 	}
-	return apiKey.Group.Platform
+	return GroupExecutionPlatform(apiKey.Group.Platform)
 }
 
 // QuotaPlatform 返回 user×platform 配额计量使用的平台标识。

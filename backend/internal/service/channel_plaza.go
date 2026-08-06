@@ -122,7 +122,7 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 			}
 			for j := range supported {
 				m := supported[j]
-				if m.Platform != pg.Platform {
+				if m.Platform != GroupExecutionPlatform(pg.Platform) {
 					continue
 				}
 				pricing := plazaImageDisplayPricing(m.Pricing, groupEnt[gid])
@@ -136,7 +136,7 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 				idx[m.Name] = len(pg.Models)
 				pg.Models = append(pg.Models, PlazaModel{
 					Name:     m.Name,
-					Platform: m.Platform,
+					Platform: pg.Platform,
 					Pricing:  pricing,
 				})
 			}

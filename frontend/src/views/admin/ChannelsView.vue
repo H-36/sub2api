@@ -799,7 +799,11 @@ function togglePlatform(platform: GroupPlatform) {
 }
 
 function getGroupsForPlatform(platform: GroupPlatform): AdminGroup[] {
-  return allGroups.value.filter(g => g.platform === platform || g.platform === 'composite')
+  return allGroups.value.filter(g => channelPlatformForGroup(g.platform) === platform || g.platform === 'composite')
+}
+
+function channelPlatformForGroup(platform: GroupPlatform): GroupPlatform {
+  return platform === 'deepseek' ? 'openai' : platform
 }
 
 // ── Group helpers ──
@@ -1168,7 +1172,7 @@ function apiToForm(channel: Channel): PlatformSection[] {
   // Build a map: groupID → platform
   const groupPlatformMap = new Map<number, GroupPlatform>()
   for (const g of allGroups.value) {
-    groupPlatformMap.set(g.id, g.platform)
+    groupPlatformMap.set(g.id, channelPlatformForGroup(g.platform))
   }
 
   // Determine which platforms are active (from groups + pricing + mapping)
@@ -1364,7 +1368,7 @@ function distributeRulesToPlatforms(apiRules: AccountStatsPricingRule[]) {
   // Build groupID → platform lookup
   const groupPlatformMap = new Map<number, GroupPlatform>()
   for (const g of allGroups.value) {
-    groupPlatformMap.set(g.id, g.platform)
+    groupPlatformMap.set(g.id, channelPlatformForGroup(g.platform))
   }
 
   for (const apiRule of apiRules) {

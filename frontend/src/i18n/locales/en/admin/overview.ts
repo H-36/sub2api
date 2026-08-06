@@ -941,6 +941,7 @@ export default {
         all: 'All Platforms',
         anthropic: 'Anthropic',
         openai: 'OpenAI',
+        deepseek: 'DeepSeek',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         grok: 'Grok',

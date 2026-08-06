@@ -386,7 +386,7 @@ func getGroupPlatform(c *gin.Context) string {
 			return platform
 		}
 	}
-	return apiKey.Group.Platform
+	return service.GroupExecutionPlatform(apiKey.Group.Platform)
 }
 
 func compositeTargetPlatformMiddleware(resolver *service.CompositeRouteResolver) gin.HandlerFunc {
