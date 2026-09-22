@@ -2785,15 +2785,6 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 
 	// Handle OpenAI accounts
 	if account.IsOpenAI() {
-		if account.IsDeepSeekAPIKeyAccount() {
-			response.Success(c, []openai.Model{{
-				ID:          service.DeepSeekV4FlashModel,
-				Object:      "model",
-				Type:        "model",
-				DisplayName: service.DeepSeekV4FlashModel,
-			}})
-			return
-		}
 		// Prefer the shared, account-keyed upstream catalog. If discovery fails,
 		// retain the legacy local catalog below so the test dialog remains usable.
 		if h.accountTestService != nil {

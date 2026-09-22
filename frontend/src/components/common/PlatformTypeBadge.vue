@@ -3,8 +3,7 @@
     <!-- Row 1: Platform + Type -->
     <div class="inline-flex items-center overflow-hidden rounded-md">
       <span :class="['inline-flex items-center gap-1 px-2 py-1', platformClass]">
-        <DeepSeekIcon v-if="isDeepSeekProvider" size="xs" />
-        <PlatformIcon v-else :platform="platform" size="xs" />
+        <PlatformIcon :platform="platform" size="xs" />
         <span>{{ platformLabel }}</span>
       </span>
       <span :class="['inline-flex items-center gap-1 px-1.5 py-1', typeClass]">
@@ -69,7 +68,6 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AccountPlatform, AccountType } from '@/types'
-import DeepSeekIcon from './DeepSeekIcon.vue'
 import { platformLabel as sharedPlatformLabel } from '@/utils/platformColors'
 import { normalizePlanType, openAIPlanTypeLabel } from '@/utils/planType'
 import GrokFreeIcon from './GrokFreeIcon.vue'
@@ -81,7 +79,6 @@ const { t } = useI18n()
 interface Props {
   platform: AccountPlatform
   type: AccountType
-  provider?: unknown
   authMode?: string
   planType?: string
   privacyMode?: string
@@ -90,11 +87,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const isDeepSeekProvider = computed(() =>
-  props.platform === 'openai' && props.provider === 'deepseek'
-)
-
-const platformLabel = computed(() => isDeepSeekProvider.value ? 'DeepSeek' : sharedPlatformLabel(props.platform))
+const platformLabel = computed(() => sharedPlatformLabel(props.platform))
 
 const normalizedAuthMode = computed(() =>
   (props.authMode || '').trim().toLowerCase().replace(/[\s_-]+/g, '')

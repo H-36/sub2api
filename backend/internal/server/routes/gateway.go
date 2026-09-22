@@ -523,11 +523,6 @@ func RegisterGatewayRoutes(
 }
 
 func dispatchCodexModelsGateway(c *gin.Context, openAIHandler, generatedHandler gin.HandlerFunc) {
-	// DeepSeek uses the OpenAI transport, but must advertise its own models.
-	if apiKey, ok := middleware.GetAPIKeyFromContext(c); ok && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformDeepSeek {
-		generatedHandler(c)
-		return
-	}
 	if getGroupPlatform(c) == service.PlatformOpenAI {
 		openAIHandler(c)
 		return
@@ -546,7 +541,7 @@ func getGroupPlatform(c *gin.Context) string {
 			return platform
 		}
 	}
-	return service.GroupExecutionPlatform(apiKey.Group.Platform)
+	return apiKey.Group.Platform
 }
 
 func compositeTargetPlatformMiddleware(resolver *service.CompositeRouteResolver) gin.HandlerFunc {

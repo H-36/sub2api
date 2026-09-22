@@ -17,40 +17,6 @@ func directImagesTestAccount() *Account {
 		Credentials: map[string]any{"access_token": "test-token", "chatgpt_account_id": "test-account"}}
 }
 
-func TestCodexDirectImagesPlaygroundSSE(t *testing.T) {
-	for _, invalid := range []bool{false, true} {
-		t.Run(fmt.Sprint(invalid), func(t *testing.T) {
-			body := []byte(`{"model":"gpt-image-2","prompt":"draw","response_format":"url"}`)
-			c, rec := newOpenAIImagesTestContext(t, body)
-			c.Request.Header.Set(openAIImagesPlaygroundHeader, "true")
-			resp := openAIImagesJSONResponse()
-			if invalid {
-				resp.Body = io.NopCloser(strings.NewReader(`{"data":[]}`))
-			}
-			upstream := &httpUpstreamRecorder{resp: resp}
-			svc := newOpenAIImagesTestService(upstream)
-			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
-			require.NoError(t, err)
-			result, err := svc.ForwardImages(context.Background(), c, directImagesTestAccount(), body, parsed, "")
-			require.Equal(t, "/backend-api/codex/images/generations", upstream.lastReq.URL.Path)
-			require.Contains(t, rec.Header().Get("Content-Type"), "text/event-stream")
-			events := parseOpenAIImageTestSSEEvents(rec.Body.String())
-			if invalid {
-				require.Error(t, err)
-				_, ok := findOpenAIImageTestSSEEvent(events, "error")
-				require.True(t, ok)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, 1, result.ImageCount)
-			require.Equal(t, 20, result.Usage.ImageOutputTokens)
-			event, ok := findOpenAIImageTestSSEEvent(events, "done")
-			require.True(t, ok)
-			require.Equal(t, "data:image/png;base64,aGVsbG8=", gjson.Get(event.Data, "data.0.url").String())
-		})
-	}
-}
-
 func TestCodexDirectImagesRouting(t *testing.T) {
 	for _, model := range []string{"gpt-image-1.5", "gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2.5-flare-2026-09-08", "gpt-image-2.5-sunburst-2026-09-08"} {
 		t.Run(model, func(t *testing.T) {

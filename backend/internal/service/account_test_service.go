@@ -760,8 +760,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	// Default to openai.DefaultTestModel for OpenAI testing
 	testModelID := modelID
 	if testModelID == "" {
-		testModelID = account.DefaultOpenAITestModel()
+		testModelID = openai.DefaultTestModel
 	}
+
 	// Align test routing with gateway behavior: OpenAI accounts apply normal
 	// account model mapping. Native remote compaction v2 rides the ordinary
 	// /responses wire and does NOT apply the legacy compact-only mapping

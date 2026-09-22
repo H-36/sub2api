@@ -43,6 +43,37 @@ describe('callImageApi', () => {
     vi.unstubAllGlobals()
   })
 
+  it('accepts upstream JSON heartbeats without a playground protocol header', async () => {
+    const encoder = new TextEncoder()
+    const response = new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(' \n\t\n'))
+        controller.enqueue(encoder.encode('{"data":[{"b64_json":"aW1hZ2U="}]}'))
+        controller.close()
+      },
+    }), { headers: { 'Content-Type': 'application/json' } })
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+    const result = await callImageApi({
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key', apiMode: 'images' },
+      prompt: 'draw', params: { ...DEFAULT_PARAMS }, inputImageDataUrls: [],
+    })
+    expect(result.images).toHaveLength(1)
+    const headers = new Headers(fetchMock.mock.calls[0][1]?.headers)
+    expect(headers.get('Accept')).toBe('application/json')
+    expect(headers.has('X-Sub2API-Image-Playground')).toBe(false)
+  })
+
+  it.each([200, 402])('reports the upstream error after a heartbeat with HTTP %s', async (status) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      ' \n\n{"error":{"message":"Insufficient balance","type":"insufficient_quota"}}',
+      { status, headers: { 'Content-Type': 'application/json' } },
+    ))
+    await expect(callImageApi({
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key', apiMode: 'images' },
+      prompt: 'draw', params: { ...DEFAULT_PARAMS }, inputImageDataUrls: [],
+    })).rejects.toThrow('Insufficient balance')
+  })
+
   it.each([false, true])(
     'adds the prompt rewrite guard on Responses API when Codex CLI mode is %s',
     async (codexCli) => {

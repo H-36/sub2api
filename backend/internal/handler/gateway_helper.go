@@ -139,7 +139,7 @@ const (
 	// SSEPingFormatNone indicates no ping should be sent (e.g., OpenAI has no ping spec)
 	SSEPingFormatNone SSEPingFormat = ""
 	// SSEPingFormatComment is an SSE comment ping for OpenAI/Codex CLI clients
-	SSEPingFormatComment SSEPingFormat = ": ping\n\n"
+	SSEPingFormatComment SSEPingFormat = ":\n\n"
 )
 
 // ConcurrencyError represents a concurrency limit error with context

@@ -1027,119 +1027,6 @@ func (s *OpenAIGatewayService) handleOpenAIImagesErrorResponse(
 	return nil, upErr
 }
 
-// handleOpenAIImagesPlaygroundSSEErrorResponse mirrors
-// handleOpenAIImagesErrorResponse for the image playground wrapper. The
-// playground response has already committed an HTTP 200 SSE stream, so terminal
-// upstream errors must be emitted as an SSE error event instead of c.JSON while
-// preserving the same passthrough-rule, account-error, and secondary-failover
-// behavior as the normal images path.
-func (s *OpenAIGatewayService) handleOpenAIImagesPlaygroundSSEErrorResponse(
-	ctx context.Context,
-	resp *http.Response,
-	c *gin.Context,
-	account *Account,
-	writer *openAIImagesPlaygroundSSEWriter,
-	requestedModel ...string,
-) (*OpenAIForwardResult, error) {
-	if writer == nil {
-		return s.handleOpenAIImagesErrorResponse(ctx, resp, c, account, requestedModel...)
-	}
-	body := s.readUpstreamErrorBody(resp)
-
-	upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
-	upstreamDetail := ""
-	if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
-		maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
-		if maxBytes <= 0 {
-			maxBytes = 2048
-		}
-		upstreamDetail = truncateString(string(body), maxBytes)
-	}
-	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
-
-	if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
-		logger.LegacyPrintf("service.openai_gateway",
-			"OpenAI images playground upstream error %d (account=%d platform=%s type=%s): %s",
-			resp.StatusCode,
-			account.ID,
-			account.Platform,
-			account.Type,
-			truncateForLog(body, s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes),
-		)
-	}
-
-	if status, errType, errMsg, matched := applyErrorPassthroughRule(
-		c,
-		account.Platform,
-		resp.StatusCode,
-		body,
-		http.StatusBadGateway,
-		"upstream_error",
-		"Upstream request failed",
-	); matched {
-		upErr := &OpenAIImagesUpstreamError{
-			StatusCode:        status,
-			ErrorType:         errType,
-			Message:           errMsg,
-			UpstreamRequestID: strings.TrimSpace(resp.Header.Get("x-request-id")),
-		}
-		_ = writer.WriteUpstreamErrorResponse(upErr)
-		return nil, upErr
-	}
-
-	if !account.ShouldHandleErrorCode(resp.StatusCode) {
-		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-			Platform:           account.Platform,
-			AccountID:          account.ID,
-			AccountName:        account.Name,
-			UpstreamStatusCode: resp.StatusCode,
-			UpstreamRequestID:  resp.Header.Get("x-request-id"),
-			Kind:               "http_error",
-			Message:            upstreamMsg,
-			Detail:             upstreamDetail,
-		})
-		upErr := &OpenAIImagesUpstreamError{
-			StatusCode:        http.StatusInternalServerError,
-			ErrorType:         "upstream_error",
-			Message:           "Upstream gateway error",
-			UpstreamRequestID: strings.TrimSpace(resp.Header.Get("x-request-id")),
-		}
-		_ = writer.WriteUpstreamErrorResponse(upErr)
-		return nil, upErr
-	}
-
-	var modelForCooldown string
-	if len(requestedModel) > 0 {
-		modelForCooldown = strings.TrimSpace(requestedModel[0])
-	}
-	shouldDisable := s.handleOpenAIAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, body, modelForCooldown)
-	kind := "http_error"
-	if shouldDisable {
-		kind = "failover"
-	}
-	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-		Platform:           account.Platform,
-		AccountID:          account.ID,
-		AccountName:        account.Name,
-		UpstreamStatusCode: resp.StatusCode,
-		UpstreamRequestID:  resp.Header.Get("x-request-id"),
-		Kind:               kind,
-		Message:            upstreamMsg,
-		Detail:             upstreamDetail,
-	})
-	if shouldDisable {
-		return nil, &UpstreamFailoverError{
-			StatusCode:             resp.StatusCode,
-			ResponseBody:           body,
-			RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
-		}
-	}
-
-	upErr := openAIImagesUpstreamErrorFromHTTP(resp.StatusCode, resp.Header, body)
-	_ = writer.WriteUpstreamErrorResponse(upErr)
-	return nil, upErr
-}
-
 func buildOpenAIImagesAPIResponse(
 	results []openAIResponsesImageResult,
 	createdAt int64,
@@ -1503,56 +1390,6 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthNonStreamingResponse(
 	}
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	c.Data(resp.StatusCode, "application/json; charset=utf-8", responseBody)
-	return usage, len(results), openAIResponsesImageResultSizes(results), nil
-}
-
-func (s *OpenAIGatewayService) handleOpenAIImagesOAuthPlaygroundSSENonStreamingResponse(
-	resp *http.Response,
-	c *gin.Context,
-	writer *openAIImagesPlaygroundSSEWriter,
-	responseFormat string,
-	fallbackModel string,
-) (OpenAIUsage, int, []string, error) {
-	if writer == nil {
-		usage, count, sizes, err := s.handleOpenAIImagesOAuthNonStreamingResponse(resp, c, responseFormat, fallbackModel)
-		return usage, count, sizes, err
-	}
-	body, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
-	if err != nil {
-		if errors.Is(err, ErrUpstreamResponseBodyTooLarge) {
-			setOpsUpstreamError(c, http.StatusBadGateway, "upstream response too large", "")
-			_ = writer.WriteError("upstream_error", "Upstream response too large")
-		} else {
-			_ = writer.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
-		}
-		return OpenAIUsage{}, 0, nil, err
-	}
-
-	var usage OpenAIUsage
-	forEachOpenAISSEDataPayload(string(body), func(data []byte) {
-		s.parseOpenAIImagesSSEUsageBytes(data, &usage)
-	})
-	results, createdAt, usageRaw, firstMeta, _, err := collectOpenAIImagesFromResponsesBody(body)
-	if err != nil {
-		_ = writer.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
-		return OpenAIUsage{}, 0, nil, err
-	}
-	if len(results) == 0 {
-		_ = writer.WriteError("upstream_error", "upstream did not return image output")
-		return OpenAIUsage{}, 0, nil, fmt.Errorf("upstream did not return image output")
-	}
-	if strings.TrimSpace(firstMeta.Model) == "" {
-		firstMeta.Model = strings.TrimSpace(fallbackModel)
-	}
-
-	responseBody, err := buildOpenAIImagesAPIResponse(results, createdAt, usageRaw, firstMeta, responseFormat)
-	if err != nil {
-		_ = writer.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
-		return OpenAIUsage{}, 0, nil, err
-	}
-	if err := writer.WriteDoneJSON(responseBody); err != nil {
-		return OpenAIUsage{}, 0, nil, err
-	}
 	return usage, len(results), openAIResponsesImageResultSizes(results), nil
 }
 
@@ -1952,14 +1789,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	channelMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
-	playgroundSSE, err := NewOpenAIImagesPlaygroundSSEWriter(c, parsed)
-	if err != nil {
-		return nil, err
-	}
-	if playgroundSSE != nil {
-		defer playgroundSSE.Stop()
-	}
-
 	requestModel := strings.TrimSpace(parsed.Model)
 	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
 		requestModel = mapped
@@ -1968,12 +1797,10 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		requestModel = "gpt-image-2"
 	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
-		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	upstreamModel := account.GetMappedModel(requestModel)
 	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
-		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	direct := usesCodexDirectImages(upstreamModel) && !isOpenAIImagesForceResponses(ctx)
@@ -1992,7 +1819,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 
 	token, _, err := s.GetAccessToken(upstreamCtx, account)
 	if err != nil {
-		playgroundSSE.WriteUpstreamError(err)
 		return nil, err
 	}
 
@@ -2005,13 +1831,11 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		targetURL = chatgptCodexURL
 	}
 	if err != nil {
-		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	upstreamCtx = withOpenAIImagesSelfBuiltRequest(upstreamCtx)
 	upstreamReq, err := s.buildUpstreamRequest(upstreamCtx, c, account, responsesBody, token, true, parsed.StickySessionSeed(), false)
 	if err != nil {
-		playgroundSSE.WriteUpstreamError(err)
 		return nil, err
 	}
 	// 复用 Codex 认证、影子账号及指纹头；仅切换已构造请求的端点和响应协议。
@@ -2051,9 +1875,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 			Kind:               "request_error",
 			Message:            safeErr,
 		})
-		if playgroundSSE != nil {
-			_ = playgroundSSE.WriteError("upstream_error", safeErr)
-		}
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
 	if resp.StatusCode >= 400 {
@@ -2061,7 +1882,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		_ = resp.Body.Close()
 		respBody = s.redactAgentIdentitySensitiveBody(upstreamCtx, account, respBody)
 		if direct && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed) {
-			playgroundSSE.Stop()
 			return s.forwardOpenAIImagesOAuth(withOpenAIImagesForceResponses(ctx), c, account, parsed, channelMappedModel)
 		}
 		if !agentIdentityTaskRecoveryWasTried(ctx) && s.isAgentIdentityAccount(ctx, account) && isAgentIdentityTaskInvalidHTTPResponse(resp.StatusCode, respBody) {
@@ -2069,14 +1889,10 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 			if err := s.recoverAgentIdentityTask(ctx, account, expectedTaskID); err != nil {
 				return nil, fmt.Errorf("agent identity task recovery failed: %w", err)
 			}
-			playgroundSSE.Stop()
 			return s.forwardOpenAIImagesOAuth(markAgentIdentityTaskRecoveryTried(ctx), c, account, parsed, channelMappedModel)
 		}
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		if !direct && isOpenAIImagesMainModelError(resp.StatusCode, respBody) {
-			if playgroundSSE != nil {
-				return s.handleOpenAIImagesPlaygroundSSEErrorResponse(upstreamCtx, resp, c, account, playgroundSSE, upstreamModel)
-			}
 			return s.handleOpenAIImagesErrorResponse(upstreamCtx, resp, c, account, upstreamModel)
 		}
 		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
@@ -2104,9 +1920,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 				shouldDisable,
 				!shouldDisable && account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
 			)
-		}
-		if playgroundSSE != nil {
-			return s.handleOpenAIImagesPlaygroundSSEErrorResponse(upstreamCtx, resp, c, account, playgroundSSE, upstreamModel)
 		}
 		return s.handleOpenAIImagesErrorResponse(upstreamCtx, resp, c, account, upstreamModel)
 	}
@@ -2158,16 +1971,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 				writerSizeBeforeResponse,
 				err,
 			)
-		}
-	} else if playgroundSSE != nil {
-		if direct {
-			usage, imageCount, imageOutputSizes, err = s.handleCodexDirectImagesNonStreamingResponse(resp, c, parsed, playgroundSSE)
-		} else {
-			usage, imageCount, imageOutputSizes, err = s.handleOpenAIImagesOAuthPlaygroundSSENonStreamingResponse(resp, c, playgroundSSE, parsed.ResponseFormat, requestModel)
-		}
-		if err != nil {
-			playgroundSSE.WriteUpstreamError(err)
-			return nil, err
 		}
 	} else {
 		if direct {

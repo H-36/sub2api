@@ -204,18 +204,8 @@ func codexDirectImagesUsage(body []byte) (OpenAIUsage, bool) {
 	return usage, true
 }
 
-func (s *OpenAIGatewayService) handleCodexDirectImagesNonStreamingResponse(resp *http.Response, c *gin.Context, parsed *OpenAIImagesRequest, playground ...*openAIImagesPlaygroundSSEWriter) (OpenAIUsage, int, []string, error) {
-	var writer *openAIImagesPlaygroundSSEWriter
-	if len(playground) > 0 {
-		writer = playground[0]
-	}
-	var body []byte
-	var err error
-	if writer != nil {
-		body, err = readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
-	} else {
-		body, err = ReadUpstreamResponseBody(resp.Body, s.cfg, c, openAITooLargeError)
-	}
+func (s *OpenAIGatewayService) handleCodexDirectImagesNonStreamingResponse(resp *http.Response, c *gin.Context, parsed *OpenAIImagesRequest) (OpenAIUsage, int, []string, error) {
+	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, openAITooLargeError)
 	if err != nil {
 		if shouldClassifyOpenAIUpstreamStreamReadError(err) {
 			err = newOpenAIUpstreamStreamReadError(err)
@@ -258,12 +248,6 @@ func (s *OpenAIGatewayService) handleCodexDirectImagesNonStreamingResponse(resp 
 			}
 			body = codexDirectImageURL(body, fmt.Sprintf("data.%d.", i), format)
 		}
-	}
-	if writer != nil {
-		if err := writer.WriteDoneJSON(body); err != nil {
-			return usage, len(results), openAIResponsesImageResultSizes(results), err
-		}
-		return usage, len(results), openAIResponsesImageResultSizes(results), nil
 	}
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	contentType := "application/json"

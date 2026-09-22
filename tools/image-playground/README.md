@@ -22,6 +22,11 @@ Sub2API-specific behavior is applied after the upstream build:
 - Upstream's media-query dark CSS is converted to class-based dark CSS so the
   iframe follows Sub2API's theme toggle instead of the operating system theme.
 
+Image requests use the standard Images API JSON response and upstream's JSON
+whitespace keepalive. The playground does not send a custom SSE header. Since
+a heartbeat commits HTTP 200, the client also checks the final JSON for an
+OpenAI error object. The existing reference-image and mask editing UI is retained.
+
 ## Build
 
 From the repository root:

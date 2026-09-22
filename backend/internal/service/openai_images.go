@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -18,7 +17,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -44,9 +42,6 @@ const (
 	openAIImageMaxUploadPartSize           = 20 << 20 // 20MB per multipart upload part
 	openAIImagesResponsesMainModel         = "gpt-5.6-luna"
 	openAIImagesVerbatimPromptInstructions = "When invoking the image_generation tool, use the user's image prompt verbatim. Do not rewrite, expand, summarize, embellish, translate, normalize punctuation, or add or remove visual details or constraints. Preserve the original language, wording, capitalization, quotes, and punctuation exactly."
-
-	openAIImagesPlaygroundHeader          = "X-Sub2API-Image-Playground"
-	openAIImagesPlaygroundSSEPingInterval = 20 * time.Second
 )
 
 // openAIImagesResponsesMainModelValue selects the Responses driver independently
@@ -190,195 +185,6 @@ func (r *OpenAIImagesRequest) StickySessionSeed() string {
 		seed += "|body=" + r.bodyHash
 	}
 	return seed
-}
-
-type openAIImagesPlaygroundSSEWriter struct {
-	c       *gin.Context
-	flusher http.Flusher
-	mu      sync.Mutex
-	done    chan struct{}
-	once    sync.Once
-	final   bool
-}
-
-func NewOpenAIImagesPlaygroundSSEWriter(c *gin.Context, parsed *OpenAIImagesRequest) (*openAIImagesPlaygroundSSEWriter, error) {
-	if !ShouldUseOpenAIImagesPlaygroundSSE(c, parsed) {
-		return nil, nil
-	}
-	return StartOpenAIImagesPlaygroundSSE(c)
-}
-
-func ShouldUseOpenAIImagesPlaygroundSSE(c *gin.Context, parsed *OpenAIImagesRequest) bool {
-	if c == nil || parsed == nil || parsed.Stream {
-		return false
-	}
-	value := strings.TrimSpace(c.GetHeader(openAIImagesPlaygroundHeader))
-	if value == "" {
-		return false
-	}
-	switch strings.ToLower(value) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}
-
-func IsOpenAIImagesPlaygroundSSEStarted(c *gin.Context) bool {
-	if c == nil || c.Writer == nil {
-		return false
-	}
-	contentType := strings.ToLower(strings.TrimSpace(c.Writer.Header().Get("Content-Type")))
-	return strings.HasPrefix(contentType, "text/event-stream") && c.Writer.Written()
-}
-
-func StartOpenAIImagesPlaygroundSSE(c *gin.Context) (*openAIImagesPlaygroundSSEWriter, error) {
-	if c == nil || c.Writer == nil {
-		return nil, fmt.Errorf("missing response writer")
-	}
-	flusher, ok := c.Writer.(http.Flusher)
-	if !ok {
-		return nil, fmt.Errorf("streaming is not supported by response writer")
-	}
-
-	header := c.Writer.Header()
-	header.Set("Content-Type", "text/event-stream; charset=utf-8")
-	header.Set("Cache-Control", "no-cache, no-transform")
-	header.Set("Connection", "keep-alive")
-	header.Set("X-Accel-Buffering", "no")
-	if !c.Writer.Written() {
-		c.Status(http.StatusOK)
-		c.Writer.WriteHeaderNow()
-	}
-
-	writer := &openAIImagesPlaygroundSSEWriter{
-		c:       c,
-		flusher: flusher,
-		done:    make(chan struct{}),
-	}
-	if err := writer.WritePing(); err != nil {
-		writer.Stop()
-		return nil, err
-	}
-	go writer.pingLoop(c.Request.Context())
-	return writer, nil
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) WriteInvalidRequest(err error) {
-	if w == nil || err == nil {
-		return
-	}
-	_ = w.WriteError("invalid_request_error", err.Error())
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) WriteUpstreamError(err error) {
-	if w == nil || err == nil {
-		return
-	}
-	_ = w.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) pingLoop(ctx context.Context) {
-	ticker := time.NewTicker(openAIImagesPlaygroundSSEPingInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-w.done:
-			return
-		case <-ticker.C:
-			if err := w.WritePing(); err != nil {
-				return
-			}
-		}
-	}
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) Stop() {
-	if w == nil {
-		return
-	}
-	w.once.Do(func() {
-		close(w.done)
-	})
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) WritePing() error {
-	if w == nil {
-		return nil
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.final {
-		return nil
-	}
-	if _, err := fmt.Fprint(w.c.Writer, ": ping\n\n"); err != nil {
-		return err
-	}
-	w.flusher.Flush()
-	return nil
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) WriteDoneJSON(payload []byte) error {
-	if w == nil {
-		return nil
-	}
-	w.Stop()
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.final = true
-	if _, err := fmt.Fprintf(w.c.Writer, "event: done\ndata: %s\n\n", payload); err != nil {
-		return err
-	}
-	w.flusher.Flush()
-	return nil
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) WriteError(errType, message string) error {
-	if w == nil {
-		return nil
-	}
-	if strings.TrimSpace(errType) == "" {
-		errType = "upstream_error"
-	}
-	if strings.TrimSpace(message) == "" {
-		message = "Upstream request failed"
-	}
-	body := []byte(`{"error":{"type":"","message":""}}`)
-	body, _ = sjson.SetBytes(body, "error.type", errType)
-	body, _ = sjson.SetBytes(body, "error.message", message)
-
-	return w.WriteErrorJSON(body)
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) WriteUpstreamErrorResponse(err *OpenAIImagesUpstreamError) error {
-	if w == nil {
-		return nil
-	}
-	body := openAIImagesUpstreamErrorResponseBody(err)
-	if len(body) == 0 {
-		return w.WriteError("upstream_error", "Upstream request failed")
-	}
-	return w.WriteErrorJSON(body)
-}
-
-func (w *openAIImagesPlaygroundSSEWriter) WriteErrorJSON(body []byte) error {
-	if w == nil {
-		return nil
-	}
-	if len(body) == 0 {
-		body = []byte(`{"error":{"type":"upstream_error","message":"Upstream request failed"}}`)
-	}
-	w.Stop()
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.final = true
-	if _, err := fmt.Fprintf(w.c.Writer, "event: error\ndata: %s\n\n", body); err != nil {
-		return err
-	}
-	w.flusher.Flush()
-	return nil
 }
 
 func (s *OpenAIGatewayService) ParseOpenAIImagesRequest(c *gin.Context, body []byte) (*OpenAIImagesRequest, error) {
@@ -784,25 +590,15 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	channelMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
-	playgroundSSE, err := NewOpenAIImagesPlaygroundSSEWriter(c, parsed)
-	if err != nil {
-		return nil, err
-	}
-	if playgroundSSE != nil {
-		defer playgroundSSE.Stop()
-	}
-
 	requestModel := strings.TrimSpace(parsed.Model)
 	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
 		requestModel = mapped
 	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
-		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	upstreamModel := account.GetMappedModel(requestModel)
 	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
-		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	SetOpsUpstreamModel(c, upstreamModel)
@@ -816,7 +612,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	)
 	forwardBody, forwardContentType, err := rewriteOpenAIImagesModel(body, parsed.ContentType, upstreamModel)
 	if err != nil {
-		playgroundSSE.WriteInvalidRequest(err)
 		return nil, err
 	}
 	// 生图是长耗时、上游侧已产生实际成本的操作：客户端中途断开不应连带取消上游请求。
@@ -829,12 +624,10 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 
 	token, _, err := s.GetAccessToken(upstreamCtx, account)
 	if err != nil {
-		playgroundSSE.WriteUpstreamError(err)
 		return nil, err
 	}
 	upstreamReq, err := s.buildOpenAIImagesRequest(upstreamCtx, c, account, forwardBody, forwardContentType, token, parsed.Endpoint)
 	if err != nil {
-		playgroundSSE.WriteUpstreamError(err)
 		return nil, err
 	}
 
@@ -859,9 +652,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			Kind:               "request_error",
 			Message:            safeErr,
 		})
-		if playgroundSSE != nil {
-			_ = playgroundSSE.WriteError("upstream_error", safeErr)
-		}
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
 	if resp.StatusCode >= 400 {
@@ -910,9 +700,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			}
 			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: retryableOnSameAccount}
 		}
-		if playgroundSSE != nil {
-			return s.handleOpenAIImagesPlaygroundSSEErrorResponse(upstreamCtx, resp, c, account, playgroundSSE, upstreamModel)
-		}
 		return s.handleOpenAIImagesErrorResponse(upstreamCtx, resp, c, account, upstreamModel)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -960,30 +747,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			ImageSize:        parsed.SizeTier,
 			ImageInputSize:   parsed.Size,
 			ImageOutputSizes: imageOutputSizes,
-		}, nil
-	} else if playgroundSSE != nil {
-		nonStreamUsage, nonStreamCount, nonStreamSizes, err := s.handleOpenAIImagesPlaygroundSSENonStreamingResponse(upstreamCtx, resp, c, playgroundSSE, account, parsed)
-		if err != nil {
-			return nil, err
-		}
-		usage = nonStreamUsage
-		if nonStreamCount > 0 {
-			imageCount = nonStreamCount
-		}
-		return &OpenAIForwardResult{
-			RequestID:        resp.Header.Get("x-request-id"),
-			UpstreamHeaders:  resp.Header,
-			Usage:            usage,
-			Model:            requestModel,
-			UpstreamModel:    upstreamModel,
-			Stream:           false,
-			ResponseHeaders:  resp.Header.Clone(),
-			Duration:         time.Since(startTime),
-			FirstTokenMs:     firstTokenMs,
-			ImageCount:       imageCount,
-			ImageSize:        parsed.SizeTier,
-			ImageInputSize:   parsed.Size,
-			ImageOutputSizes: nonStreamSizes,
 		}, nil
 	} else {
 		nonStreamUsage, nonStreamCount, nonStreamSizes, err := s.handleOpenAIImagesNonStreamingResponse(upstreamCtx, resp, c, account, parsed)
@@ -1113,6 +876,7 @@ func rewriteOpenAIImagesMultipartModel(body []byte, contentType string, model st
 			return nil, "", fmt.Errorf("read multipart body: %w", err)
 		}
 
+		formName := strings.TrimSpace(part.FormName())
 		partHeader := cloneMultipartHeader(part.Header)
 		normalizeOpenAIImagesMultipartImageField(partHeader)
 		target, err := writer.CreatePart(partHeader)
@@ -1121,7 +885,6 @@ func rewriteOpenAIImagesMultipartModel(body []byte, contentType string, model st
 			return nil, "", fmt.Errorf("create multipart part: %w", err)
 		}
 
-		formName := strings.TrimSpace(part.FormName())
 		if formName == "model" && part.FileName() == "" {
 			if _, err := target.Write([]byte(model)); err != nil {
 				_ = part.Close()
@@ -1159,22 +922,6 @@ func cloneMultipartHeader(src textproto.MIMEHeader) textproto.MIMEHeader {
 	return dst
 }
 
-func normalizeOpenAIImagesMultipartImageField(header textproto.MIMEHeader) {
-	disposition := header.Get("Content-Disposition")
-	if disposition == "" {
-		return
-	}
-	mediaType, params, err := mime.ParseMediaType(disposition)
-	if err != nil || !strings.EqualFold(mediaType, "form-data") {
-		return
-	}
-	if !strings.HasPrefix(strings.TrimSpace(params["name"]), "image[") {
-		return
-	}
-	params["name"] = "image"
-	header.Set("Content-Disposition", mime.FormatMediaType(mediaType, params))
-}
-
 func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(
 	ctx context.Context,
 	resp *http.Response,
@@ -1196,49 +943,6 @@ func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(
 	}
 	c.Data(resp.StatusCode, contentType, body)
 
-	usage, _ := extractOpenAIUsageFromJSONBytes(body)
-	return usage, extractOpenAIImageCountFromJSONBytes(body), collectOpenAIResponseImageOutputSizesFromJSONBytes(body), nil
-}
-
-func (s *OpenAIGatewayService) handleOpenAIImagesPlaygroundSSENonStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, writer *openAIImagesPlaygroundSSEWriter, account *Account, parsed *OpenAIImagesRequest) (OpenAIUsage, int, []string, error) {
-	if writer == nil {
-		usage, count, sizes, err := s.handleOpenAIImagesNonStreamingResponse(ctx, resp, c, account, parsed)
-		return usage, count, sizes, err
-	}
-	body, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
-	if err != nil {
-		if errors.Is(err, ErrUpstreamResponseBodyTooLarge) {
-			setOpsUpstreamError(c, http.StatusBadGateway, "upstream response too large", "")
-			_ = writer.WriteError("upstream_error", "Upstream response too large")
-		} else {
-			_ = writer.WriteError("upstream_error", sanitizeUpstreamErrorMessage(err.Error()))
-		}
-		return OpenAIUsage{}, 0, nil, err
-	}
-
-	if resp.StatusCode >= 400 {
-		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
-		upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
-		if upstreamMsg == "" {
-			upstreamMsg = "Upstream request failed"
-		}
-		upstreamDetail := ""
-		if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
-			maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
-			if maxBytes <= 0 {
-				maxBytes = 2048
-			}
-			upstreamDetail = truncateString(string(body), maxBytes)
-		}
-		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
-		_ = writer.WriteError("upstream_error", upstreamMsg)
-		return OpenAIUsage{}, 0, nil, fmt.Errorf("upstream error: %d message=%s", resp.StatusCode, upstreamMsg)
-	}
-
-	body = s.backfillOpenAIImagesB64JSON(ctx, account, parsed, body)
-	if err := writer.WriteDoneJSON(body); err != nil {
-		return OpenAIUsage{}, 0, nil, err
-	}
 	usage, _ := extractOpenAIUsageFromJSONBytes(body)
 	return usage, extractOpenAIImageCountFromJSONBytes(body), collectOpenAIResponseImageOutputSizesFromJSONBytes(body), nil
 }
@@ -2059,4 +1763,20 @@ func dedupeStrings(values []string) []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+func normalizeOpenAIImagesMultipartImageField(header textproto.MIMEHeader) {
+	disposition := header.Get("Content-Disposition")
+	if disposition == "" {
+		return
+	}
+	mediaType, params, err := mime.ParseMediaType(disposition)
+	if err != nil || !strings.EqualFold(mediaType, "form-data") {
+		return
+	}
+	if !strings.HasPrefix(strings.TrimSpace(params["name"]), "image[") {
+		return
+	}
+	params["name"] = "image"
+	header.Set("Content-Disposition", mime.FormatMediaType(mediaType, params))
 }

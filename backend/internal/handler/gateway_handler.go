@@ -1159,7 +1159,7 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	}
 
 	// Get available models from account configurations for the selected group platform.
-	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, service.GroupExecutionPlatform(platform))
+	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
 		source := modelListingSource(platform, availableModels, defaultModelIDsForPlatform(platform))
 		writeAllowlistedModelsList(c, platform, apiKey.Group.ModelAllowlist.FilterForListing(source))
@@ -1174,10 +1174,6 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	// Fallback to default models
 	if platform == service.PlatformOpenAI {
 		writeModelsListResponse(c, openai.DefaultModels)
-		return
-	}
-	if platform == service.PlatformDeepSeek {
-		writeOpenAIModelsList(c, []string{service.DeepSeekV4FlashModel})
 		return
 	}
 
@@ -1298,7 +1294,7 @@ func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *
 }
 
 func writeModelsList(c *gin.Context, platform string, modelIDs []string) {
-	if platform == service.PlatformOpenAI || platform == service.PlatformDeepSeek {
+	if platform == service.PlatformOpenAI {
 		writeOpenAIModelsList(c, modelIDs)
 		return
 	}
@@ -1438,8 +1434,6 @@ func defaultModelIDsForPlatform(platform string) []string {
 	switch platform {
 	case service.PlatformOpenAI:
 		return openai.DefaultModelIDs()
-	case service.PlatformDeepSeek:
-		return []string{service.DeepSeekV4FlashModel}
 	case service.PlatformGemini:
 		ids := make([]string, 0, len(geminicli.DefaultModels))
 		for _, model := range geminicli.DefaultModels {

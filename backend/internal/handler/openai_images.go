@@ -94,8 +94,6 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		zap.String("img_quality", parsed.Quality),
 		zap.String("img_size", parsed.Size),
 	)
-	usePlaygroundSSE := service.ShouldUseOpenAIImagesPlaygroundSSE(c, parsed)
-	waitStream := parsed.Stream || usePlaygroundSSE
 
 	if !service.GroupAllowsImageGeneration(apiKey.Group) {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
@@ -127,7 +125,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
 
-	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, waitStream, &streamStarted, reqLog)
+	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, parsed.Stream, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}
@@ -224,7 +222,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		reqLog.Debug("openai.images.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, waitStream, &streamStarted, reqLog)
+		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, parsed.Stream, &streamStarted, reqLog)
 		if slotResult == openAISlotAcquireProfitVetoed {
 			// Images 调度不装利润门，此分支实际不可达；防御性排除重选并受同一否决上限约束。
 			if !recordOpenAIProfitVeto(failedAccountIDs, account.ID, &profitVetoCount) {
@@ -238,7 +236,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		}
 
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
-		if !parsed.Stream && !usePlaygroundSSE && !jsonKeepaliveStarted {
+		if !parsed.Stream && !jsonKeepaliveStarted {
 			stopJSONKeepalive = service.StartOpenAIImagesJSONKeepalive(c, h.openAIImagesJSONKeepaliveInterval())
 			jsonKeepaliveStarted = true
 		}
@@ -259,9 +257,6 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 			responseLatencyMs = forwardDurationMs - upstreamLatencyMs
 		}
 		service.SetOpsLatencyMs(c, service.OpsResponseLatencyMsKey, responseLatencyMs)
-		if service.IsOpenAIImagesPlaygroundSSEStarted(c) {
-			streamStarted = true
-		}
 		if result != nil && result.FirstTokenMs != nil {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}

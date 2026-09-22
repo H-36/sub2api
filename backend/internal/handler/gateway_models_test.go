@@ -909,11 +909,9 @@ func TestDefaultModelIDsForPlatform_CNProvidersKeepClaudeDefaults(t *testing.T) 
 	for _, model := range claude.DefaultModels {
 		want = append(want, model.ID)
 	}
-	for _, platform := range []string{service.PlatformKimi, service.PlatformZhipu, service.PlatformMiniMax} {
+	for _, platform := range []string{service.PlatformKimi, service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax} {
 		require.Equal(t, want, defaultModelIDsForPlatform(platform), "platform=%s", platform)
 	}
-	// The fork's DeepSeek groups advertise the OpenAI-compatible Flash account pool.
-	require.Equal(t, []string{service.DeepSeekV4FlashModel}, defaultModelIDsForPlatform(service.PlatformDeepSeek))
 }
 
 func TestDefaultCodexModelIDsForPlatform_DeepSeekUsesDeepSeekModels(t *testing.T) {

@@ -357,9 +357,6 @@ func populateChannelCache(channels []Channel, groupPlatforms map[int64]string) *
 // Concrete platforms stay isolated; composite groups may carry concrete-provider
 // pricing rows that are selected by the request's resolved target platform.
 func isPlatformPricingMatch(groupPlatform, pricingPlatform string) bool {
-	if groupPlatform == PlatformDeepSeek {
-		return pricingPlatform == PlatformDeepSeek || pricingPlatform == PlatformOpenAI
-	}
 	if groupPlatform == PlatformComposite {
 		return isConcreteRequestPlatform(pricingPlatform)
 	}
@@ -370,9 +367,6 @@ func isPlatformPricingMatch(groupPlatform, pricingPlatform string) bool {
 // Concrete platforms return themselves; composite is a configuration-time
 // fallback used before a request target has been resolved.
 func matchingPlatforms(groupPlatform string) []string {
-	if groupPlatform == PlatformDeepSeek {
-		return []string{PlatformDeepSeek, PlatformOpenAI}
-	}
 	if groupPlatform == PlatformComposite {
 		return []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo}
 	}
