@@ -13,7 +13,7 @@ export default defineUserConfig({
   description: 'puaai 对外接入文档，包含快速开始、CLI 配置、第三方调用、API 地址、计费与价格和常见问题。',
   base: '/docs/',
   dest: path.resolve(__dirname, '../../../backend/internal/web/dist/docs'),
-  clientConfigFile: path.resolve(__dirname, './client.ts'),
+  clientConfigFile: path.resolve(__dirname, './client.ts').replace(/\\/g, '/'),
   head: [
     ['meta', { name: 'theme-color', content: '#0f766e' }],
     ['meta', { property: 'og:title', content: docsMeta.siteName }],

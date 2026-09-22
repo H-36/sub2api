@@ -435,7 +435,7 @@ func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, lim
 	codes, err := client.RedeemCode.Query().
 		Where(redeemcode.UsedByEQ(userID)).
 		WithGroup().
-		Order(dbent.Desc(redeemcode.FieldUsedAt)).
+		Order(dbent.Desc(redeemcode.FieldUsedAt), dbent.Desc(redeemcode.FieldID)).
 		Limit(limit).
 		All(ctx)
 	if err != nil {
@@ -447,7 +447,7 @@ func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, lim
 		WithRedeemCode(func(q *dbent.RedeemCodeQuery) {
 			q.WithGroup()
 		}).
-		Order(dbent.Desc(redeemcodeclaim.FieldClaimedAt)).
+		Order(dbent.Desc(redeemcodeclaim.FieldClaimedAt), dbent.Desc(redeemcodeclaim.FieldID)).
 		Limit(limit).
 		All(ctx)
 	if err != nil {
@@ -481,7 +481,7 @@ func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID i
 
 	codes, err := q.
 		WithGroup().
-		Order(dbent.Desc(redeemcode.FieldUsedAt)).
+		Order(dbent.Desc(redeemcode.FieldUsedAt), dbent.Desc(redeemcode.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -500,7 +500,7 @@ func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID i
 		WithRedeemCode(func(q *dbent.RedeemCodeQuery) {
 			q.WithGroup()
 		}).
-		Order(dbent.Desc(redeemcodeclaim.FieldClaimedAt)).
+		Order(dbent.Desc(redeemcodeclaim.FieldClaimedAt), dbent.Desc(redeemcodeclaim.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -654,13 +654,13 @@ func sortRedeemCodesByUsedAtDesc(codes []service.RedeemCode) {
 		right := codes[j].UsedAt
 		switch {
 		case left == nil && right == nil:
-			return codes[i].CreatedAt.After(codes[j].CreatedAt)
+			return codes[i].ID > codes[j].ID
 		case left == nil:
 			return false
 		case right == nil:
 			return true
 		case left.Equal(*right):
-			return codes[i].CreatedAt.After(codes[j].CreatedAt)
+			return codes[i].ID > codes[j].ID
 		default:
 			return left.After(*right)
 		}

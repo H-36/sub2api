@@ -63,6 +63,8 @@ export default {
   purchase: {
     title: 'Recharge / Subscription',
     description: 'Recharge balance or purchase subscription via the embedded page',
+    rechargeDescription: 'Recharge balance via the embedded page',
+    subscriptionDescription: 'Purchase subscription via the embedded page',
     openInNewTab: 'Open in new tab',
     notEnabledTitle: 'Feature not enabled',
     notEnabledDesc: 'The administrator has not enabled the recharge/subscription entry. Please contact admin.',
@@ -73,6 +75,8 @@ export default {
 
   // Custom Page (iframe embed)
   customPage: {
+    openingExternalTitle: "Opening checkout",
+    openingExternalDesc: "If the page does not open automatically, use the link below.",
     title: 'Custom Page',
     openInNewTab: 'Open in new tab',
     notFoundTitle: 'Page not found',
@@ -385,6 +389,7 @@ export default {
     tabSubscribe: 'Subscribe',
     noPlans: 'No subscription plans available',
     notAvailable: 'Top-up is currently unavailable',
+    billingUnavailable: 'Neither top-up nor subscriptions are currently available. Please contact the administrator.',
     confirmSubscription: 'Confirm Subscription',
     confirmCancel: 'Are you sure you want to cancel this order?',
     amountTooLow: 'Minimum amount is {min}',

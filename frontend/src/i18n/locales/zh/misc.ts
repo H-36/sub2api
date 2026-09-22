@@ -62,6 +62,8 @@ export default {
   purchase: {
     title: '充值/订阅',
     description: '通过内嵌页面完成充值/订阅',
+    rechargeDescription: '通过内嵌页面完成充值',
+    subscriptionDescription: '通过内嵌页面完成订阅',
     openInNewTab: '新窗口打开',
     notEnabledTitle: '该功能未开启',
     notEnabledDesc: '管理员暂未开启充值/订阅入口，请联系管理员。',
@@ -71,6 +73,8 @@ export default {
 
   // Custom Page (iframe embed)
   customPage: {
+    openingExternalTitle: "正在打开支付页面",
+    openingExternalDesc: "如果未自动打开，请点击下方链接。",
     title: '自定义页面',
     openInNewTab: '新窗口打开',
     notFoundTitle: '页面不存在',
@@ -409,6 +413,7 @@ export default {
     tabSubscribe: '订阅',
     noPlans: '暂无可用订阅套餐',
     notAvailable: '充值功能暂未开放',
+    billingUnavailable: '充值与订阅均暂未开放，请联系管理员。',
     confirmSubscription: '确认订阅',
     confirmCancel: '确定要取消此订单吗？',
     amountTooLow: '最低金额为 {min}',
