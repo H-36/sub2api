@@ -119,22 +119,16 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 
 	return func(c *gin.Context) {
 		finalPolicy := policy
-		finalPolicy = ensureDirectiveValue(finalPolicy, "frame-src", "'self'")
 		if getFrameSrcOrigins != nil {
 			for _, origin := range getFrameSrcOrigins() {
 				if origin != "" {
-					finalPolicy = ensureDirectiveValue(finalPolicy, "frame-src", origin)
+					finalPolicy = addToDirective(finalPolicy, "frame-src", origin)
 				}
 			}
 		}
 
 		c.Header("X-Content-Type-Options", "nosniff")
-		if isSameOriginFrameAllowedPath(c) {
-			c.Header("X-Frame-Options", "SAMEORIGIN")
-			finalPolicy = setDirective(finalPolicy, "frame-ancestors", "'self'")
-		} else {
-			c.Header("X-Frame-Options", "DENY")
-		}
+		c.Header("X-Frame-Options", "DENY")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		if isAPIRoutePath(c) {
 			c.Next()
@@ -155,14 +149,6 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 		}
 		c.Next()
 	}
-}
-
-func isSameOriginFrameAllowedPath(c *gin.Context) bool {
-	if c == nil || c.Request == nil || c.Request.URL == nil {
-		return false
-	}
-	path := c.Request.URL.Path
-	return path == "/image-playground-app" || strings.HasPrefix(path, "/image-playground-app/")
 }
 
 func isAPIRoutePath(c *gin.Context) bool {
@@ -194,13 +180,6 @@ func enhanceCSPPolicy(policy string) string {
 	return policy
 }
 
-func ensureDirectiveValue(policy, directive, value string) string {
-	if directiveHasValue(policy, directive, value) {
-		return policy
-	}
-	return addToDirective(policy, directive, value)
-}
-
 func directiveHasValue(policy, directive, value string) bool {
 	for _, rawDirective := range strings.Split(policy, ";") {
 		fields := strings.Fields(strings.TrimSpace(rawDirective))
@@ -215,36 +194,6 @@ func directiveHasValue(policy, directive, value string) bool {
 		return false
 	}
 	return false
-}
-
-func setDirective(policy, directive, value string) string {
-	directivePrefix := directive + " "
-	replacement := directivePrefix + value
-	idx := strings.Index(policy, directivePrefix)
-
-	if idx == -1 {
-		if strings.TrimSpace(policy) == "" {
-			return replacement
-		}
-
-		defaultSrcIdx := strings.Index(policy, "default-src ")
-		if defaultSrcIdx != -1 {
-			endIdx := strings.Index(policy[defaultSrcIdx:], ";")
-			if endIdx != -1 {
-				insertPos := defaultSrcIdx + endIdx + 1
-				return policy[:insertPos] + " " + replacement + ";" + policy[insertPos:]
-			}
-		}
-
-		return replacement + "; " + policy
-	}
-
-	endIdx := strings.Index(policy[idx:], ";")
-	if endIdx == -1 {
-		return policy[:idx] + replacement
-	}
-
-	return policy[:idx] + replacement + policy[idx+endIdx:]
 }
 
 // addToDirective adds a value to a specific CSP directive.

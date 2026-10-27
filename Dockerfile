@@ -40,8 +40,6 @@ RUN --mount=type=cache,id=sub2api-pnpm-store,target=/root/.local/share/pnpm/stor
 # in the image (WORKDIR /app/frontend -> resolves to /app/docs/legal/*.md).
 # Copy only that subtree to keep the build dependency minimal.
 COPY frontend/ ./
-COPY tools/image-playground/ /app/tools/image-playground/
-COPY third_party/gpt_image_playground/ /app/third_party/gpt_image_playground/
 COPY docs/legal/ /app/docs/legal/
 RUN pnpm run build
 

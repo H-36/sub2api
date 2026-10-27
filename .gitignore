@@ -35,9 +35,6 @@ backend/.gocache/
 node_modules/
 frontend/node_modules/
 frontend/dist/
-frontend/public/image-playground-app/
-third_party/gpt_image_playground/node_modules/
-third_party/gpt_image_playground/dist/
 *.local
 *.tsbuildinfo
 vite.config.d.ts

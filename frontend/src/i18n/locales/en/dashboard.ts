@@ -58,10 +58,6 @@ export default {
     redeemCode: 'Redeem Code',
     addBalanceWithCode: 'Add balance with a code'
   },
-  imagePlayground: {
-    title: 'Image Workshop',
-    description: 'Use the embedded image generation and editing workspace'
-  },
 
   // Groups (shared)
   groups: {

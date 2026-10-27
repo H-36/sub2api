@@ -58,10 +58,6 @@ export default {
     redeemCode: '兑换码',
     addBalanceWithCode: '使用兑换码充值'
   },
-  imagePlayground: {
-    title: '图片工坊',
-    description: '使用内置图片生成与编辑工作台'
-  },
 
   // Groups (shared)
   groups: {

@@ -915,7 +915,6 @@ func rewriteOpenAIImagesMultipartModel(body []byte, contentType string, model st
 
 		formName := strings.TrimSpace(part.FormName())
 		partHeader := cloneMultipartHeader(part.Header)
-		normalizeOpenAIImagesMultipartImageField(partHeader)
 		target, err := writer.CreatePart(partHeader)
 		if err != nil {
 			_ = part.Close()
@@ -1800,20 +1799,4 @@ func dedupeStrings(values []string) []string {
 		out = append(out, value)
 	}
 	return out
-}
-
-func normalizeOpenAIImagesMultipartImageField(header textproto.MIMEHeader) {
-	disposition := header.Get("Content-Disposition")
-	if disposition == "" {
-		return
-	}
-	mediaType, params, err := mime.ParseMediaType(disposition)
-	if err != nil || !strings.EqualFold(mediaType, "form-data") {
-		return
-	}
-	if !strings.HasPrefix(strings.TrimSpace(params["name"]), "image[") {
-		return
-	}
-	params["name"] = "image"
-	header.Set("Content-Disposition", mime.FormatMediaType(mediaType, params))
 }
